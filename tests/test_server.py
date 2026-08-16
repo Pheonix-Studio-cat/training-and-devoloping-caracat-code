@@ -19,6 +19,7 @@ import pytest
 
 from caracat_code.interface import resolve_config
 from caracat_code.server import ServerOptions, create_server, public_config
+from caracat_code.workspace import Workspace
 
 PROVIDER_KEY = "stub-key-123"
 INDEX = b"<!doctype html><title>Caracat Code</title>"
@@ -246,3 +247,90 @@ def test_the_page_loads_nothing_from_outside() -> None:
 
     for marker in ("http://", "https://", "//cdn", "<script src", "<link href"):
         assert marker not in page, f"the page must not reference {marker!r}"
+
+
+# ---- project files -----------------------------------------------------
+
+FAKE_KEY = "sk-" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4"
+
+
+@pytest.fixture
+def project(tmp_path: Path) -> Path:
+    root = tmp_path / "project"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "main.py").write_text("print('hi')\n", encoding="utf-8")
+    (root / "leaky.py").write_text(f"TOKEN = '{FAKE_KEY}'\n", encoding="utf-8")
+    (root / ".env").write_text("SECRET=1\n", encoding="utf-8")
+    (tmp_path / "outside.txt").write_text("not yours\n", encoding="utf-8")
+    return root
+
+
+@pytest.fixture
+def with_project(provider: str, project: Path) -> Iterator[str]:
+    yield from start_interface(provider, workspace=Workspace.open(project))
+
+
+def test_the_file_tree_is_served(with_project: str) -> None:
+    with get(f"{with_project}/api/files") as response:
+        payload = json.loads(response.read())
+
+    paths = [entry["path"] for entry in payload["entries"]]
+    assert "src/main.py" in paths
+    assert ".env" not in paths
+
+
+def test_a_project_file_is_served(with_project: str) -> None:
+    with get(f"{with_project}/api/file?path=src/main.py") as response:
+        payload = json.loads(response.read())
+
+    assert payload["text"] == "print('hi')\n"
+
+
+def test_a_file_holding_a_credential_is_refused_over_http(with_project: str) -> None:
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        get(f"{with_project}/api/file?path=leaky.py")
+
+    body = caught.value.read().decode()
+    assert caught.value.code == 403
+    assert "line 1" in body
+    assert FAKE_KEY not in body
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "../outside.txt",
+        "%2e%2e%2foutside.txt",
+        "src%2F..%2F..%2Foutside.txt",
+        "/etc/passwd",
+    ],
+)
+def test_escaping_the_project_over_http_is_refused(
+    with_project: str, query: str
+) -> None:
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        get(f"{with_project}/api/file?path={query}")
+
+    assert caught.value.code == 400
+    assert b"not yours" not in caught.value.read()
+
+
+def test_a_credential_file_is_refused_by_name_over_http(with_project: str) -> None:
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        get(f"{with_project}/api/file?path=.env")
+
+    assert caught.value.code == 400
+    assert "never readable" in caught.value.read().decode()
+
+
+def test_the_file_routes_explain_themselves_without_a_project(interface: str) -> None:
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        get(f"{interface}/api/files")
+
+    assert caught.value.code == 404
+    assert "--project-dir" in caught.value.read().decode()
+
+
+def test_the_settings_report_no_project_by_default(interface: str) -> None:
+    with get(f"{interface}/api/config") as response:
+        assert json.loads(response.read())["project_dir"] is None

@@ -26,6 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from caracat_code.interface import (
     LOCAL_HOSTS,
@@ -35,6 +36,7 @@ from caracat_code.interface import (
     redact,
     upstream_url,
 )
+from caracat_code.workspace import Workspace, WorkspaceError, WorkspaceSecretError
 
 __all__ = [
     "MAX_REQUEST_BYTES",
@@ -56,6 +58,7 @@ class ServerOptions:
     config: InterfaceConfig
     index_html: bytes
     system_prompt: str | None = None
+    workspace: Workspace | None = None
 
 
 def public_config(options: ServerOptions) -> dict[str, object]:
@@ -67,6 +70,7 @@ def public_config(options: ServerOptions) -> dict[str, object]:
     return {
         **options.config.public_settings(),
         "default_system_prompt": options.system_prompt,
+        "project_dir": str(options.workspace.root) if options.workspace else None,
     }
 
 
@@ -187,6 +191,58 @@ def make_handler(options: ServerOptions) -> type[BaseHTTPRequestHandler]:
                 return
             self._send_bytes(200, "application/json; charset=utf-8", body)
 
+        def _query(self, name: str) -> str:
+            values = parse_qs(urlparse(self.path).query).get(name, [])
+            return values[0] if values else ""
+
+        def _workspace(self) -> Workspace | None:
+            if options.workspace is None:
+                self._send_error_json(
+                    404,
+                    "No project directory is open. Restart the server with "
+                    "--project-dir <path> to let Caracat Code read your files.",
+                )
+                return None
+            return options.workspace
+
+        def route_files(self) -> None:
+            workspace = self._workspace()
+            if workspace is None:
+                return
+            entries = workspace.tree()
+            self._send_json(
+                200,
+                {
+                    "root": str(workspace.root),
+                    "entries": [
+                        {"path": e.path, "is_dir": e.is_dir, "size": e.size}
+                        for e in entries
+                    ],
+                },
+            )
+
+        def route_file(self) -> None:
+            workspace = self._workspace()
+            if workspace is None:
+                return
+            try:
+                content = workspace.read(self._query("path"))
+            except WorkspaceSecretError as exc:
+                # 403 rather than 400: the request was well formed, the content
+                # is what makes it refusable.
+                self._send_error_json(403, str(exc))
+                return
+            except WorkspaceError as exc:
+                self._send_error_json(400, str(exc))
+                return
+            except OSError as exc:
+                self._send_error_json(400, f"could not read the file: {exc}")
+                return
+            self._send_json(
+                200,
+                {"path": content.path, "text": content.text, "lines": content.lines},
+            )
+
         def route_chat(self) -> None:
             try:
                 payload = build_chat_payload(
@@ -225,6 +281,8 @@ def make_handler(options: ServerOptions) -> type[BaseHTTPRequestHandler]:
                     "/": self.route_index,
                     "/api/config": self.route_config,
                     "/api/models": self.route_models,
+                    "/api/files": self.route_files,
+                    "/api/file": self.route_file,
                 }
             return {"/api/chat": self.route_chat}
 

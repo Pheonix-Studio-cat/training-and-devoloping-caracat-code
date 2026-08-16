@@ -43,6 +43,7 @@ from caracat_code.server import (  # noqa: E402
     create_server,
     read_index,
 )
+from caracat_code.workspace import Workspace, WorkspaceError  # noqa: E402
 
 INDEX_PATH = Path(__file__).resolve().parent.parent / "interface" / "index.html"
 
@@ -84,6 +85,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Start without a default system prompt.",
     )
+
+    project = parser.add_argument_group("project files")
+    project.add_argument(
+        "--project-dir",
+        type=Path,
+        help=(
+            "Directory Caracat Code may read from. Nothing outside it is "
+            "reachable. Files that hold credentials are refused by name, and "
+            "everything else is scanned before it is sent anywhere."
+        ),
+    )
     return parser
 
 
@@ -109,6 +121,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Cannot start the interface:\n\n{exc}", file=sys.stderr)
             return 2
 
+    workspace: Workspace | None = None
+    if args.project_dir is not None:
+        try:
+            workspace = Workspace.open(args.project_dir)
+        except WorkspaceError as exc:
+            print(f"Cannot start the interface:\n\n{exc}", file=sys.stderr)
+            return 2
+
     try:
         index_html = read_index(INDEX_PATH)
     except FileNotFoundError as exc:
@@ -116,7 +136,10 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     options = ServerOptions(
-        config=config, index_html=index_html, system_prompt=system_prompt
+        config=config,
+        index_html=index_html,
+        system_prompt=system_prompt,
+        workspace=workspace,
     )
 
     if not config.is_local_only:
@@ -133,6 +156,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Provider:    {config.api_base}")
     print(f"Model:       {config.model or '(choose one in the interface)'}")
     print(f"Personality: {persona_note}")
+    print(
+        f"Project:     {workspace.root if workspace else '(none, use --project-dir)'}"
+    )
     print("Press Ctrl+C to stop.")
 
     try:
