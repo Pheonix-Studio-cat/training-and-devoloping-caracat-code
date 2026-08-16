@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "caracat-code"
+version = "0.1.0"
+description = "Training, evaluation and publication tooling for Caracat Code, an AI coding model based on Qwen3-Coder-Next."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Caracat Code Project" }]
+keywords = ["llm", "code-generation", "coding-agent", "qwen3", "fine-tuning"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Software Development :: Code Generators",
+]
+dependencies = ["PyYAML>=6.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+# Training dependencies are deliberately empty. Every library added here must
+# first be recorded in THIRD_PARTY_LICENSES.md with its license read from the
+# primary source -- see CLAUDE.md, section "Licensing".
+train = []
+
+[project.urls]
+Homepage = "https://github.com/Pheonix-Studio-cat/training-and-devoloping-caracat-code"
+Model = "https://huggingface.co/Chinook416/caracat_code"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "scripts", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

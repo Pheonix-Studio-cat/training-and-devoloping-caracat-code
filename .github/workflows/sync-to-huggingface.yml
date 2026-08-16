@@ -1,20 +1,65 @@
 name: Sync Caracat Code to Hugging Face
 
+# Publishes the contents of hf/ -- and only hf/ -- to the Hugging Face model
+# repository Chinook416/caracat_code.
+#
+# huggingface/hub-sync mirrors what it is pointed at, deletions included:
+# anything added to hf/ becomes public on the next push to main, and anything
+# removed from hf/ is removed from the Hub. Scoping the sync to hf/ makes the
+# upload an explicit allowlist rather than an opt-out, so unrelated repository
+# files (source, tests, configs, notes) are never published.
+#
+# Authentication uses the HF_TOKEN repository secret. It is never echoed and
+# never appears in this file in plain text.
+
 on:
   push:
     branches: [main]
+    paths:
+      - "hf/**"
+      - ".github/workflows/sync-to-huggingface.yml"
   workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: huggingface-sync
+  cancel-in-progress: false
 
 jobs:
   sync:
+    # Forks have no HF_TOKEN and must not attempt to publish to the model
+    # repository.
+    if: github.repository == 'Pheonix-Studio-cat/training-and-devoloping-caracat-code'
     runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v6
+    permissions:
+      contents: read
 
-      - uses: huggingface/hub-sync@v0.1.0
+    steps:
+      - name: Verify that the HF_TOKEN secret is configured
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "${HF_TOKEN}" ]; then
+            echo "::error::The HF_TOKEN repository secret is not set. Add a Hugging Face access token with write permission for Chinook416/caracat_code under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "HF_TOKEN is configured."
+
+      - name: Check out the repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Show what will be published
+        run: |
+          echo "The following files will be mirrored to Chinook416/caracat_code:"
+          find hf -type f | sort
+
+      - name: Sync hf/ to Hugging Face
+        uses: huggingface/hub-sync@6fbce0a787a7146710e588abe7a4fd5eca07f47c # v0.1.0
         with:
           github_repo_id: ${{ github.repository }}
           huggingface_repo_id: Chinook416/caracat_code
           hf_token: ${{ secrets.HF_TOKEN }}
           repo_type: model
+          subdirectory: hf
