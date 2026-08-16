@@ -52,8 +52,10 @@ with its license and verification status in
 
 ### 4. Project-specific code
 
-Everything under `src/`, `scripts/`, `tests/` and `configs/` is original work of
-this project, licensed under Apache-2.0 ([`LICENSE`](LICENSE)).
+Everything under `src/`, `scripts/`, `tests/`, `configs/` and `interface/` is
+original work of this project, licensed under Apache-2.0 ([`LICENSE`](LICENSE)).
+The interface is written against the standard library and plain browser APIs, so
+it adds no dependencies and ships no third-party code.
 
 ---
 
@@ -68,8 +70,9 @@ MODEL_CARD.md             model documentation
 THIRD_PARTY_LICENSES.md   third-party components and their licenses
 SECURITY.md               vulnerability reporting and secret-handling policy
 hf/                       exactly what is published to Hugging Face
+interface/                the local chat interface page
 src/caracat_code/         project library
-scripts/                  train.py, evaluate.py entry points
+scripts/                  train.py, evaluate.py, serve_interface.py
 configs/                  example training configurations
 tests/                    pytest suite
 .github/workflows/        ci.yml, sync-to-huggingface.yml
@@ -102,6 +105,47 @@ Every dataset in a configuration must declare `name`, `source`, `license`,
 `commercial_use` and `attribution_required`. A dataset whose license is
 `unknown` fails validation and training cannot start with it. This is
 deliberate, and it is not to be worked around.
+
+### Trying the model in a browser
+
+`scripts/serve_interface.py` starts a small chat interface on your own machine.
+
+```bash
+export CARACAT_API_KEY='your-provider-key'
+python scripts/serve_interface.py
+```
+
+Then open <http://127.0.0.1:8765>.
+
+**What it talks to.** No Caracat weights have been trained yet, so there is
+nothing of our own to connect to. The interface speaks the OpenAI-compatible
+chat-completions protocol, which means it works with any provider that serves
+the base model — or with a local runtime:
+
+```bash
+# a hosted provider (default is https://openrouter.ai/api/v1)
+python scripts/serve_interface.py --api-base https://your-provider/v1
+
+# a local runtime, e.g. Ollama or llama.cpp
+python scripts/serve_interface.py --api-base http://localhost:11434/v1
+```
+
+The model list is fetched from whichever provider you point it at, so you pick
+a real identifier from a dropdown instead of guessing one.
+
+**Where the key lives.** In the environment, read once by the server process.
+It is never sent to the browser, never written to a log, and there is
+deliberately no `--api-key` flag, because a key passed on the command line ends
+up in your shell history and in the process list. Anything a provider echoes
+back in an error is redacted before it is shown.
+
+**What the server will and will not do.** It binds to `127.0.0.1` only and
+warns loudly if you change that. It forwards exactly two upstream paths —
+`chat/completions` and `models` — so it cannot be turned into an open proxy. It
+validates every field of a chat request rather than passing it through, rejects
+requests carrying a foreign `Host` header, and refuses plain `http` to anything
+but a local endpoint. Model output is inserted into the page as text, never as
+HTML.
 
 ### Recording an evaluation run
 

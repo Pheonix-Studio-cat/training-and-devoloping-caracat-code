@@ -190,8 +190,9 @@ MODEL_CARD.md             model documentation (GitHub copy)
 THIRD_PARTY_LICENSES.md   every third-party component and its license
 SECURITY.md               vulnerability reporting
 hf/                       exactly what is published to Hugging Face
-src/caracat_code/         project library (config, dataset gate, eval recorder)
-scripts/                  train.py, evaluate.py entry points
+interface/                the local chat interface page
+src/caracat_code/         project library (config, dataset gate, eval recorder, interface)
+scripts/                  train.py, evaluate.py, serve_interface.py entry points
 configs/                  example training configurations
 tests/                    pytest suite
 .github/workflows/        ci.yml, sync-to-huggingface.yml
@@ -205,4 +206,7 @@ pytest                         # run the test suite
 ruff check . && ruff format --check .
 python scripts/train.py --config configs/example_training.yaml --validate-only
 python scripts/evaluate.py --dry-run --output-dir eval_runs
+
+export CARACAT_API_KEY='...'          # never committed, never logged
+python scripts/serve_interface.py      # local chat interface on 127.0.0.1:8765
 ```

@@ -26,10 +26,17 @@ data.
 from the repository. Rewriting history does not un-leak a token that has already
 been pushed — rotation is the fix, cleanup is the follow-up.
 
-The only secret this project currently uses is `HF_TOKEN`, consumed by
-`.github/workflows/sync-to-huggingface.yml` to publish the `hf/` directory to
-the Hugging Face model repository. It should be a write-scoped token limited to
-that model repository.
+This project uses two secrets, and neither is ever stored in the repository:
+
+- `HF_TOKEN` — a GitHub Actions secret, consumed by
+  `.github/workflows/sync-to-huggingface.yml` to publish the `hf/` directory to
+  the Hugging Face model repository. It should be a write-scoped token limited
+  to that model repository.
+- `CARACAT_API_KEY` — a local environment variable, read by
+  `scripts/serve_interface.py` to reach an inference provider. It stays in that
+  process: the browser never receives it, it is never logged, and it is
+  redacted out of any provider error before it is displayed. There is no
+  command-line flag for it, so it does not land in your shell history.
 
 ## Workflow permissions
 
