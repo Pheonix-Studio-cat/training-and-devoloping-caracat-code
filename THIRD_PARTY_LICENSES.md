@@ -19,14 +19,17 @@ step is to read the primary source, not to assume.
 
 | Component | Source | License | Commercial use | Modification | Redistribution | Attribution required | Verification |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Qwen3-Coder-Next | `Qwen/Qwen3-Coder-Next` on Hugging Face | Apache-2.0 (reported) | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Yes — §4(a)–(d) | ⚠️ Requires verification |
+| Qwen3-Coder-Next | `Qwen/Qwen3-Coder-Next` on Hugging Face | Apache-2.0 | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Yes — §4(a)–(d) | ⚠️ Confirmed by the project owner; primary source not yet read |
 
-**Why this is not marked as verified:** the network egress proxy of the
-environment in which this file was written blocks `huggingface.co`, so the
-model page could not be read directly. Apache-2.0 is what secondary sources
-report for this model. Before the first public release of Caracat Code, open
-<https://huggingface.co/Qwen/Qwen3-Coder-Next>, read the `license` field and
-any `LICENSE` file in the repository, and update this row.
+**Status detail:** the project owner confirmed Apache-2.0 on 2026-08-16, and
+secondary sources report the same. The upstream model page itself has not been
+read directly — the network egress proxy of the environment in which this file
+was written blocks `huggingface.co`.
+
+To close this out, open <https://huggingface.co/Qwen/Qwen3-Coder-Next>, read the
+`license` field and any `LICENSE` file in that repository, and change the marker
+to ✅ Verified with the date. That is a two-minute check and it is the only
+thing standing between this row and full verification.
 
 **Obligations that follow if Apache-2.0 is confirmed:** keep the license text,
 retain all upstream copyright/attribution/NOTICE content, and state prominently
