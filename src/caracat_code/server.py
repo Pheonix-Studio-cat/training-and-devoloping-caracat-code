@@ -22,7 +22,7 @@ import json
 import sys
 import urllib.error
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -36,10 +36,12 @@ from caracat_code.interface import (
     redact,
     upstream_url,
 )
+from caracat_code.sandbox import SandboxError, SandboxLimits, run_python
 from caracat_code.workspace import Workspace, WorkspaceError, WorkspaceSecretError
 
 __all__ = [
     "MAX_REQUEST_BYTES",
+    "MAX_RUN_FILES",
     "UPSTREAM_TIMEOUT_SECONDS",
     "ServerOptions",
     "create_server",
@@ -49,6 +51,7 @@ __all__ = [
 
 MAX_REQUEST_BYTES = 4 * 1024 * 1024
 UPSTREAM_TIMEOUT_SECONDS = 300
+MAX_RUN_FILES = 20
 
 
 @dataclass(frozen=True)
@@ -71,6 +74,7 @@ def public_config(options: ServerOptions) -> dict[str, object]:
         **options.config.public_settings(),
         "default_system_prompt": options.system_prompt,
         "project_dir": str(options.workspace.root) if options.workspace else None,
+        "can_run_code": options.config.is_local_only,
     }
 
 
@@ -243,6 +247,75 @@ def make_handler(options: ServerOptions) -> type[BaseHTTPRequestHandler]:
                 {"path": content.path, "text": content.text, "lines": content.lines},
             )
 
+        def route_run(self) -> None:
+            try:
+                body = self._read_body()
+            except ChatRequestError as exc:
+                self._send_error_json(400, str(exc))
+                return
+            if not isinstance(body, Mapping):
+                self._send_error_json(400, "the request body must be a JSON object")
+                return
+
+            code = body.get("code")
+            if not isinstance(code, str):
+                self._send_error_json(400, "'code' must be a string")
+                return
+
+            requested = body.get("files") or []
+            if not isinstance(requested, list) or len(requested) > MAX_RUN_FILES:
+                self._send_error_json(
+                    400,
+                    f"'files' must be a list of at most {MAX_RUN_FILES} project paths",
+                )
+                return
+
+            inputs: dict[str, bytes] = {}
+            for name in requested:
+                if not isinstance(name, str):
+                    self._send_error_json(400, "every entry in 'files' must be a path")
+                    return
+                if options.workspace is None:
+                    self._send_error_json(
+                        404,
+                        "No project directory is open, so there are no files to "
+                        "copy into the run. Restart with --project-dir <path>.",
+                    )
+                    return
+                try:
+                    inputs[Path(name).name] = options.workspace.read_binary(name)
+                except WorkspaceError as exc:
+                    self._send_error_json(400, str(exc))
+                    return
+                except OSError as exc:
+                    self._send_error_json(400, f"could not read {name}: {exc}")
+                    return
+
+            timeout = body.get("timeout_seconds")
+            limits = SandboxLimits()
+            if isinstance(timeout, (int, float)) and not isinstance(timeout, bool):
+                limits = SandboxLimits(timeout_seconds=float(timeout))
+
+            try:
+                result = run_python(code, limits=limits, input_files=inputs)
+            except SandboxError as exc:
+                self._send_error_json(400, str(exc))
+                return
+
+            self._send_json(
+                200,
+                {
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "exit_code": result.exit_code,
+                    "timed_out": result.timed_out,
+                    "duration_seconds": result.duration_seconds,
+                    "output_truncated": result.output_truncated,
+                    "produced_files": list(result.produced_files),
+                    "succeeded": result.succeeded,
+                },
+            )
+
         def route_chat(self) -> None:
             try:
                 payload = build_chat_payload(
@@ -284,7 +357,13 @@ def make_handler(options: ServerOptions) -> type[BaseHTTPRequestHandler]:
                     "/api/files": self.route_files,
                     "/api/file": self.route_file,
                 }
-            return {"/api/chat": self.route_chat}
+            routes: dict[str, Callable[[], None]] = {"/api/chat": self.route_chat}
+            # Running code exists only on a locally bound server. Not a flag
+            # somebody can forget to unset -- bind outward and the route is
+            # simply not there.
+            if options.config.is_local_only:
+                routes["/api/run"] = self.route_run
+            return routes
 
         def _dispatch(self, method: str) -> None:
             if not self._host_is_trusted():

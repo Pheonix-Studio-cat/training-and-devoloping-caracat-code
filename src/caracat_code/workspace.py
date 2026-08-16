@@ -77,6 +77,9 @@ NEVER_READABLE = (
 """Refused by name, before size, type or content is considered."""
 
 MAX_FILE_BYTES = 256 * 1024
+MAX_COPY_BYTES = 16 * 1024 * 1024
+"""Larger than MAX_FILE_BYTES: a copy stays on this machine, a read does not."""
+
 MAX_LISTED_ENTRIES = 2000
 BINARY_SNIFF_BYTES = 4096
 
@@ -228,6 +231,33 @@ class Workspace:
 
         walk(self.root)
         return entries
+
+    def read_binary(self, relative: str, max_bytes: int = MAX_COPY_BYTES) -> bytes:
+        """Read a file's raw bytes, for copying into a local sandbox run.
+
+        The credential scan deliberately does **not** apply here, and the reason
+        matters: that scan exists to stop a file leaving the machine on its way
+        to a provider. Copying a file into a sandbox directory on the same
+        machine is not a disclosure, and refusing binary files would rule out
+        exactly the spreadsheets and archives this is for.
+
+        The name check and the size cap still apply, so ``.env`` and private
+        keys stay unreachable by this route too.
+
+        Raises:
+            WorkspaceError: If the path is not readable or is too large.
+        """
+        path = self.resolve(relative)
+        if not path.is_file():
+            raise WorkspaceError(f"{relative!r} is not a file")
+
+        size = path.stat().st_size
+        if size > max_bytes:
+            raise WorkspaceError(
+                f"{relative} is {size} bytes, and at most {max_bytes} can be "
+                "copied into a run."
+            )
+        return path.read_bytes()
 
     def read(self, relative: str) -> FileContent:
         """Read one project file as text, after checking it is safe to send.

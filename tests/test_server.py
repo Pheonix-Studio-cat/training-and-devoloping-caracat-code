@@ -18,7 +18,12 @@ from pathlib import Path
 import pytest
 
 from caracat_code.interface import resolve_config
-from caracat_code.server import ServerOptions, create_server, public_config
+from caracat_code.server import (
+    ServerOptions,
+    create_server,
+    make_handler,
+    public_config,
+)
 from caracat_code.workspace import Workspace
 
 PROVIDER_KEY = "stub-key-123"
@@ -222,7 +227,7 @@ def test_an_invalid_chat_request_is_refused(interface: str) -> None:
 
 def test_posting_to_an_unknown_path_is_refused(interface: str) -> None:
     with pytest.raises(urllib.error.HTTPError) as caught:
-        post(f"{interface}/api/run", {"code": "print(1)"})
+        post(f"{interface}/api/nonexistent", {"anything": True})
 
     assert caught.value.code == 404
 
@@ -334,3 +339,81 @@ def test_the_file_routes_explain_themselves_without_a_project(interface: str) ->
 def test_the_settings_report_no_project_by_default(interface: str) -> None:
     with get(f"{interface}/api/config") as response:
         assert json.loads(response.read())["project_dir"] is None
+
+
+# ---- running code ------------------------------------------------------
+
+
+def test_code_runs_and_the_result_comes_back(interface: str) -> None:
+    with post(f"{interface}/api/run", {"code": "print(6 * 7)"}) as response:
+        result = json.loads(response.read())
+
+    assert result["succeeded"] is True
+    assert "42" in result["stdout"]
+    assert result["exit_code"] == 0
+
+
+def test_a_failing_program_reports_its_error(interface: str) -> None:
+    with post(f"{interface}/api/run", {"code": "1 / 0"}) as response:
+        result = json.loads(response.read())
+
+    assert result["succeeded"] is False
+    assert "ZeroDivisionError" in result["stderr"]
+
+
+def test_a_run_can_be_given_a_project_file(with_project: str) -> None:
+    with post(
+        f"{with_project}/api/run",
+        {"code": "print(open('main.py').read().strip())", "files": ["src/main.py"]},
+    ) as response:
+        result = json.loads(response.read())
+
+    assert "print('hi')" in result["stdout"]
+
+
+def test_a_run_cannot_reach_outside_the_project(with_project: str) -> None:
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        post(
+            f"{with_project}/api/run",
+            {"code": "pass", "files": ["../outside.txt"]},
+        )
+
+    assert caught.value.code == 400
+    assert "outside the project" in caught.value.read().decode()
+
+
+def test_a_run_cannot_take_a_credential_file(with_project: str) -> None:
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        post(f"{with_project}/api/run", {"code": "pass", "files": [".env"]})
+
+    assert caught.value.code == 400
+    assert "never readable" in caught.value.read().decode()
+
+
+def test_the_run_route_refuses_a_body_without_code(interface: str) -> None:
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        post(f"{interface}/api/run", {"files": []})
+
+    assert caught.value.code == 400
+    assert "'code' must be a string" in caught.value.read().decode()
+
+
+def test_running_code_is_unavailable_when_bound_outward(provider: str) -> None:
+    """Not a flag that can be forgotten -- the route simply is not registered."""
+    config = resolve_config(
+        env={"CARACAT_API_KEY": PROVIDER_KEY},
+        api_base=provider,
+        host="0.0.0.0",  # binding outward is the point of this test
+        port=free_port(),
+    )
+    options = ServerOptions(config=config, index_html=INDEX)
+
+    assert public_config(options)["can_run_code"] is False
+    assert "/api/run" not in _post_routes(options)
+
+
+def _post_routes(options: ServerOptions) -> set[str]:
+    """The POST routes a handler built from these options would expose."""
+    handler = make_handler(options)
+    instance = handler.__new__(handler)  # no socket, no request
+    return set(instance._routes("POST"))
