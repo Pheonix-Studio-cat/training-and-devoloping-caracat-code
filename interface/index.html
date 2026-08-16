@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
+<!-- An empty data URI stops the browser asking for /favicon.ico. No external
+     request, no 404 in the console, no icon file to ship. -->
+<link rel="icon" href="data:,">
 <title>Caracat Code</title>
 <style>
   :root {
@@ -151,8 +154,9 @@
 
 <div id="settings">
   <div class="field grow">
-    <label for="system">System prompt</label>
+    <label for="system">System prompt &middot; the personality, loaded from prompts/caracat_persona.md</label>
     <textarea id="system" spellcheck="false"></textarea>
+    <button id="reset-system" type="button">Reset to the shipped personality</button>
   </div>
   <div class="field">
     <label for="temperature">Temperature</label>
@@ -210,6 +214,7 @@
   let messages = [];
   let controller = null;
   let allModels = [];
+  let defaultSystemPrompt = "";
 
   // ---- rendering ----------------------------------------------------
 
@@ -445,6 +450,11 @@
   $("temperature").addEventListener("change", () => store.set("temperature", $("temperature").value));
   $("maxtokens").addEventListener("change", () => store.set("maxtokens", $("maxtokens").value));
 
+  $("reset-system").addEventListener("click", () => {
+    $("system").value = defaultSystemPrompt;
+    store.set("system", defaultSystemPrompt);
+  });
+
   $("system").value = store.get("system", "");
   $("temperature").value = store.get("temperature", "0.2");
   $("maxtokens").value = store.get("maxtokens", "4096");
@@ -453,6 +463,12 @@
     .then((r) => r.json())
     .then((cfg) => {
       $("provider").textContent = cfg.api_base;
+      defaultSystemPrompt = cfg.default_system_prompt || "";
+      // Only prefill when nothing was ever saved here. An edited prompt has to
+      // survive a reload -- overwriting it would throw the edit away silently.
+      if (store.get("system", null) === null) {
+        $("system").value = defaultSystemPrompt;
+      }
       return loadModels(cfg.default_model);
     })
     .catch(() => showError("Could not reach the local server."));

@@ -32,6 +32,7 @@ from caracat_code.interface import (
     build_chat_payload,
     resolve_config,
 )
+from caracat_code.persona import PersonaError, load_persona
 
 __version__ = "0.1.0"
 
@@ -50,12 +51,14 @@ __all__ = [
     "InterfaceConfig",
     "InterfaceConfigError",
     "ModelConfig",
+    "PersonaError",
     "TrainingConfig",
     "TrainingHyperparameters",
     "__version__",
     "build_chat_payload",
     "check_dataset_licenses",
     "collect_environment",
+    "load_persona",
     "load_training_config",
     "parse_dataset_spec",
     "parse_training_config",
