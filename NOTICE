@@ -1,0 +1,38 @@
+Caracat Code
+Copyright 2026 Caracat Code Project
+
+This product includes software developed by the Caracat Code Project.
+
+================================================================================
+Base model attribution
+================================================================================
+
+Caracat Code is based on Qwen3-Coder-Next by Qwen.
+
+    Upstream model    Qwen/Qwen3-Coder-Next
+    Upstream URL      https://huggingface.co/Qwen/Qwen3-Coder-Next
+    Upstream license  Apache License 2.0, as listed on the Hugging Face model
+                      page. See THIRD_PARTY_LICENSES.md for the current
+                      verification status of this statement.
+
+Caracat Code was not trained from scratch. It derives from the upstream model
+named above.
+
+Any copyright notices, license notices, NOTICE files and attribution
+information distributed with the upstream model must be preserved in every
+redistribution of that material, including redistribution in modified form, as
+required by the Apache License 2.0.
+
+================================================================================
+Scope of this NOTICE
+================================================================================
+
+The Apache License 2.0 in the LICENSE file of this repository applies to the
+original source code authored for this project (training tooling, evaluation
+tooling, configuration and documentation in this repository).
+
+It does not, by itself, grant any rights in the upstream model weights. Those
+remain governed by the license under which Qwen distributes them.
+
+Third-party components and their licenses are listed in
+THIRD_PARTY_LICENSES.md.

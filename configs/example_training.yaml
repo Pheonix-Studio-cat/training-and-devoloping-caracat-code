@@ -1,0 +1,64 @@
+# Example training configuration for Caracat Code.
+#
+# Validate it with:
+#   python scripts/train.py --config configs/example_training.yaml --validate-only
+#
+# This example declares NO datasets, because the project does not use one yet.
+# The commented block at the bottom documents the required shape of a dataset
+# entry.
+
+run_name: caracat-code-example
+output_dir: outputs/caracat-code-example
+seed: 42
+
+model:
+  # Caracat Code is based on Qwen3-Coder-Next by Qwen.
+  base_model: Qwen/Qwen3-Coder-Next
+  # Pin a revision so a run can be repeated against the same weights.
+  revision: null
+  quantization: null
+  # Leave false unless the upstream repository genuinely requires custom code
+  # and that code has been reviewed.
+  trust_remote_code: false
+
+hyperparameters:
+  learning_rate: 1.0e-5
+  epochs: 1
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  max_sequence_length: 4096
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+
+# If true, every declared dataset must permit commercial use, or validation
+# fails. Leave false unless commercial use is actually intended for this run.
+commercial_use_intended: false
+
+# Datasets flagged as containing personal data are rejected unless this is
+# deliberately set to true after reviewing the legal basis for processing it.
+allow_personal_data: false
+
+datasets: []
+
+notes: >
+  Example configuration. Training is not implemented yet; this file exists so
+  configurations can be validated and reviewed before a training loop is added.
+
+# ---------------------------------------------------------------------------
+# Shape of a dataset entry. Every field below marked "required" must be
+# present, and the license must be established from the primary source -- a
+# dataset whose license is "unknown" fails validation and cannot be used.
+#
+# datasets:
+#   - name: example-code-corpus          # required
+#     source: https://example.org/data   # required: where it came from
+#     license: MIT                       # required: never "unknown"
+#     commercial_use: true               # required: true or false, not blank
+#     attribution_required: true         # required: true or false, not blank
+#     attribution: "example-code-corpus by Example Authors, MIT License"
+#                                        # required when attribution_required
+#     contains_personal_data: false      # optional but strongly recommended
+#     notes: "Checked against the upstream LICENSE file on 2026-01-01."
+#
+# Record the same information in THIRD_PARTY_LICENSES.md.
+# ---------------------------------------------------------------------------
