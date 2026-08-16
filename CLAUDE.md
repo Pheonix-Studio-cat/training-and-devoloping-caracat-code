@@ -189,10 +189,11 @@ NOTICE                    attribution, incl. the Qwen3-Coder-Next base model
 MODEL_CARD.md             model documentation (GitHub copy)
 THIRD_PARTY_LICENSES.md   every third-party component and its license
 SECURITY.md               vulnerability reporting
+docs/FINETUNING.md        worksheet to complete before a training run
 hf/                       exactly what is published to Hugging Face
 interface/                the local chat interface page
-src/caracat_code/         project library (config, dataset gate, eval recorder, interface)
-scripts/                  train.py, evaluate.py, serve_interface.py entry points
+src/caracat_code/         project library (config, dataset gate, data prep, eval recorder, interface)
+scripts/                  train.py, evaluate.py, prepare_dataset.py, serve_interface.py
 configs/                  example training configurations
 tests/                    pytest suite
 .github/workflows/        ci.yml, sync-to-huggingface.yml
@@ -206,6 +207,7 @@ pytest                         # run the test suite
 ruff check . && ruff format --check .
 python scripts/train.py --config configs/example_training.yaml --validate-only
 python scripts/evaluate.py --dry-run --output-dir eval_runs
+python scripts/prepare_dataset.py --input examples.jsonl --output-dir data/run-01 ...
 
 export CARACAT_API_KEY='...'          # never committed, never logged
 python scripts/serve_interface.py      # local chat interface on 127.0.0.1:8765

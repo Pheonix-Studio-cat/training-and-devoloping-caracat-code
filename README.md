@@ -52,10 +52,10 @@ with its license and verification status in
 
 ### 4. Project-specific code
 
-Everything under `src/`, `scripts/`, `tests/`, `configs/` and `interface/` is
-original work of this project, licensed under Apache-2.0 ([`LICENSE`](LICENSE)).
-The interface is written against the standard library and plain browser APIs, so
-it adds no dependencies and ships no third-party code.
+Everything under `src/`, `scripts/`, `tests/`, `configs/`, `docs/` and
+`interface/` is original work of this project, licensed under Apache-2.0
+([`LICENSE`](LICENSE)). It is written against the standard library and plain
+browser APIs, so it adds no dependencies and ships no third-party code.
 
 ---
 
@@ -69,11 +69,12 @@ NOTICE                    attribution, incl. the Qwen3-Coder-Next base model
 MODEL_CARD.md             model documentation
 THIRD_PARTY_LICENSES.md   third-party components and their licenses
 SECURITY.md               vulnerability reporting and secret-handling policy
+docs/FINETUNING.md        worksheet to complete before a training run
 hf/                       exactly what is published to Hugging Face
 interface/                the local chat interface page
 src/caracat_code/         project library
-scripts/                  train.py, evaluate.py, serve_interface.py
-configs/                  example training configurations
+scripts/                  train.py, evaluate.py, prepare_dataset.py, serve_interface.py
+configs/                  example training configurations and dataset
 tests/                    pytest suite
 .github/workflows/        ci.yml, sync-to-huggingface.yml
 ```
@@ -105,6 +106,57 @@ Every dataset in a configuration must declare `name`, `source`, `license`,
 `commercial_use` and `attribution_required`. A dataset whose license is
 `unknown` fails validation and training cannot start with it. This is
 deliberate, and it is not to be worked around.
+
+### Preparing a fine-tune
+
+Work through [`docs/FINETUNING.md`](docs/FINETUNING.md) first. It is a worksheet,
+not a tutorial: goal, method, data, hardware, cost, measurement and stop
+conditions, each with a blank that has to be filled in before GPU time is paid
+for.
+
+Turn raw examples into a checked training set:
+
+```bash
+python scripts/prepare_dataset.py \
+    --input my_examples.jsonl \
+    --output-dir data/run-01 \
+    --name my-examples \
+    --source "hand-written, own work" \
+    --license Apache-2.0 \
+    --commercial-use yes \
+    --attribution-required no
+```
+
+Accepts `{"instruction", "input", "output"}` or `{"messages": [...]}` per line —
+see [`configs/example_dataset.jsonl`](configs/example_dataset.jsonl). It checks
+the structure, removes exact duplicates, splits off a validation set with a fixed
+seed, and writes a manifest recording the counts, the license and a hash of the
+input, so it stays clear later what a run was trained on.
+
+**It refuses to write anything if the data contains something that looks like a
+credential.** A key that reaches the training data ends up in the weights, and it
+cannot be deleted from them — rotating it is the only remedy, and you have to
+notice first. The report names the line and the field, never the value. Obvious
+placeholders such as `your-api-key-here` do not trip it.
+
+The license questions have no defaults, on purpose. An unanswered licensing
+question is not the same as "no".
+
+Then validate a training configuration:
+
+```bash
+python scripts/train.py --config configs/lora_finetuning.yaml --validate-only
+```
+
+The `method:` block describes how the model is adapted — `lora`, `qlora` or
+`full`. Adapter settings are rejected for `full`, and `full` produces a warning:
+updating every weight of a model this size needs datacenter hardware, not a
+single machine.
+
+Training itself is still not implemented. That step needs training libraries,
+and each one has to be recorded in
+[`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) with its license read from
+the primary source first.
 
 ### Trying the model in a browser
 

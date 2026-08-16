@@ -176,3 +176,97 @@ def test_summary_lists_declared_datasets() -> None:
     assert "example-corpus" in summary
     assert "MIT" in summary
     assert "Qwen/Qwen3-Coder-Next" in summary
+
+
+# ---- training method --------------------------------------------------
+
+
+def test_the_method_defaults_to_lora() -> None:
+    config = parse_training_config(minimal_config())
+
+    assert config.method.kind == "lora"
+    assert config.method.is_parameter_efficient
+    assert config.method.rank == 16
+    assert config.method.alpha == 32
+
+
+def test_a_lora_method_is_parsed() -> None:
+    config = parse_training_config(
+        minimal_config(
+            method={
+                "kind": "qlora",
+                "rank": 8,
+                "alpha": 16,
+                "dropout": 0.1,
+                "target_modules": ["q_proj", "v_proj"],
+            }
+        )
+    )
+
+    assert config.method.kind == "qlora"
+    assert config.method.is_parameter_efficient
+    assert config.method.target_modules == ("q_proj", "v_proj")
+    assert "rank 8" in config.method.describe()
+
+
+def test_an_unknown_method_is_rejected() -> None:
+    with pytest.raises(ConfigError, match=r"method\.kind must be one of"):
+        parse_training_config(minimal_config(method={"kind": "magic"}))
+
+
+@pytest.mark.parametrize("missing", ["rank", "alpha"])
+def test_lora_requires_rank_and_alpha(missing: str) -> None:
+    method = {"kind": "lora", "rank": 16, "alpha": 32}
+    del method[missing]
+
+    with pytest.raises(ConfigError, match=f"method.{missing} is required"):
+        parse_training_config(minimal_config(method=method))
+
+
+def test_a_full_fine_tune_needs_no_adapter_settings() -> None:
+    config = parse_training_config(minimal_config(method={"kind": "full"}))
+
+    assert not config.method.is_parameter_efficient
+    assert config.method.rank is None
+    assert config.method.describe() == "full"
+
+
+def test_adapter_settings_are_rejected_for_a_full_fine_tune() -> None:
+    with pytest.raises(ConfigError, match="do not apply"):
+        parse_training_config(
+            minimal_config(method={"kind": "full", "rank": 16, "alpha": 32})
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("rank", 0), ("rank", 1024), ("alpha", 0), ("dropout", 1.0), ("dropout", -0.1)],
+)
+def test_method_values_are_range_checked(field: str, value: object) -> None:
+    method: dict[str, object] = {"kind": "lora", "rank": 16, "alpha": 32}
+    method[field] = value
+
+    with pytest.raises(ConfigError, match=f"method.{field}"):
+        parse_training_config(minimal_config(method=method))
+
+
+def test_target_modules_must_be_a_list_of_names() -> None:
+    method = {"kind": "lora", "rank": 16, "alpha": 32, "target_modules": "q_proj"}
+
+    with pytest.raises(ConfigError, match="target_modules must be a list"):
+        parse_training_config(minimal_config(method=method))
+
+
+def test_the_shipped_lora_config_is_valid() -> None:
+    config = load_training_config(REPO_ROOT / "configs" / "lora_finetuning.yaml")
+
+    assert config.method.kind == "lora"
+    assert config.method.rank == 16
+    assert config.method.dropout == 0.05
+
+
+def test_the_method_appears_in_the_summary() -> None:
+    summary = parse_training_config(minimal_config()).summary()
+
+    assert "method" in summary
+    assert "lora" in summary

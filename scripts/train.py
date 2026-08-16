@@ -21,7 +21,11 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 if _SRC.is_dir() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from caracat_code.config import ConfigError, load_training_config  # noqa: E402
+from caracat_code.config import (  # noqa: E402
+    ConfigError,
+    TrainingConfig,
+    load_training_config,
+)
 from caracat_code.datasets import DatasetLicenseError  # noqa: E402
 
 
@@ -46,6 +50,38 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def readiness_warnings(config: TrainingConfig) -> list[str]:
+    """Things that are valid but would still sink a real run.
+
+    These are warnings, not errors: the configuration is well-formed, and it is
+    not this script's place to forbid a choice the project owner made on purpose.
+    """
+    warnings: list[str] = []
+
+    if not config.method.is_parameter_efficient:
+        warnings.append(
+            f"method.kind is {config.method.kind!r}. A full fine-tune updates every "
+            "weight, so the whole model must fit in memory -- for a model of this "
+            "size that means datacenter hardware, not a single machine. LoRA or "
+            "QLoRA train a small adapter instead and leave the base weights "
+            "untouched. See docs/FINETUNING.md, section 2."
+        )
+
+    if not config.datasets:
+        warnings.append(
+            "no datasets are declared, so there is nothing to train on. Prepare "
+            "one with scripts/prepare_dataset.py and declare it under 'datasets'."
+        )
+
+    if config.model.trust_remote_code:
+        warnings.append(
+            "model.trust_remote_code is enabled. That executes code shipped with "
+            "the model repository. Only leave it on if you have read that code."
+        )
+
+    return warnings
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
@@ -67,6 +103,9 @@ def main(argv: list[str] | None = None) -> int:
             print("\nAttribution required for:")
             for spec in attributions:
                 print(f"  - {spec.name}: {spec.attribution_text()}")
+
+    for warning in readiness_warnings(config):
+        print(f"\nWARNING: {warning}", file=sys.stderr)
 
     if args.validate_only:
         return 0

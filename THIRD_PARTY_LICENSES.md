@@ -62,9 +62,13 @@ dependencies are deliberately absent — see "Not yet included" below.
 | pytest | `dev` | MIT | ✅ Verified 2026-08-16 — PyPI metadata (`license_expression: MIT`) |
 | ruff | `dev` | MIT | ✅ Verified 2026-08-16 — PyPI metadata (`license_expression: MIT`) |
 
-The local chat interface (`interface/`, `scripts/serve_interface.py`) adds no
-dependencies at all: it uses only the Python standard library and plain browser
-APIs. No CDN scripts, no fonts, no stylesheets, no third-party code is loaded.
+Two later additions deliberately kept this list unchanged:
+
+- the local chat interface (`interface/`, `scripts/serve_interface.py`) uses only
+  the Python standard library and plain browser APIs — no CDN scripts, no fonts,
+  no stylesheets, no third-party code is loaded;
+- the dataset preparation tooling (`src/caracat_code/data_prep.py`,
+  `scripts/prepare_dataset.py`) uses only the standard library.
 
 ---
 
