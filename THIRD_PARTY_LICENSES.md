@@ -68,7 +68,9 @@ Two later additions deliberately kept this list unchanged:
   the Python standard library and plain browser APIs — no CDN scripts, no fonts,
   no stylesheets, no third-party code is loaded;
 - the dataset preparation tooling (`src/caracat_code/data_prep.py`,
-  `scripts/prepare_dataset.py`) uses only the standard library.
+  `scripts/prepare_dataset.py`) uses only the standard library;
+- so do the workspace, sandbox, conversation store and fetch modules added
+  later. The whole interface is standard library plus plain browser APIs.
 
 ---
 

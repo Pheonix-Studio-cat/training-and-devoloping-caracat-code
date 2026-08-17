@@ -191,8 +191,11 @@ THIRD_PARTY_LICENSES.md   every third-party component and its license
 SECURITY.md               vulnerability reporting
 docs/FINETUNING.md        worksheet to complete before a training run
 hf/                       exactly what is published to Hugging Face
-interface/                the local chat interface page
-src/caracat_code/         project library (config, dataset gate, data prep, eval recorder, interface)
+interface/                the local interface page
+prompts/                  the personality, as an editable file
+src/caracat_code/         project library (config, dataset gate, data prep, eval
+                          recorder, interface, server, workspace, sandbox,
+                          conversations, fetch, persona)
 scripts/                  train.py, evaluate.py, prepare_dataset.py, serve_interface.py
 configs/                  example training configurations
 tests/                    pytest suite
@@ -210,5 +213,5 @@ python scripts/evaluate.py --dry-run --output-dir eval_runs
 python scripts/prepare_dataset.py --input examples.jsonl --output-dir data/run-01 ...
 
 export CARACAT_API_KEY='...'          # never committed, never logged
-python scripts/serve_interface.py      # local chat interface on 127.0.0.1:8765
+python scripts/serve_interface.py --project-dir ~/proj   # the interface
 ```

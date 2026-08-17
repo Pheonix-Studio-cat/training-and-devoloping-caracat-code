@@ -28,6 +28,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from caracat_code.conversations import ConversationError, ConversationStore
+from caracat_code.fetch import FetchError, fetch_url
 from caracat_code.interface import (
     LOCAL_HOSTS,
     ChatRequestError,
@@ -62,6 +64,7 @@ class ServerOptions:
     index_html: bytes
     system_prompt: str | None = None
     workspace: Workspace | None = None
+    conversations: ConversationStore | None = None
 
 
 def public_config(options: ServerOptions) -> dict[str, object]:
@@ -75,6 +78,10 @@ def public_config(options: ServerOptions) -> dict[str, object]:
         "default_system_prompt": options.system_prompt,
         "project_dir": str(options.workspace.root) if options.workspace else None,
         "can_run_code": options.config.is_local_only,
+        "can_save_conversations": options.conversations is not None,
+        "conversations_dir": (
+            str(options.conversations.root) if options.conversations else None
+        ),
     }
 
 
@@ -316,6 +323,77 @@ def make_handler(options: ServerOptions) -> type[BaseHTTPRequestHandler]:
                 },
             )
 
+        def _store(self) -> ConversationStore | None:
+            if options.conversations is None:
+                self._send_error_json(
+                    404,
+                    "Saving conversations is switched off. Restart without "
+                    "--no-save to keep them.",
+                )
+                return None
+            return options.conversations
+
+        def route_conversations(self) -> None:
+            store = self._store()
+            if store is None:
+                return
+            identifier = self._query("id")
+            try:
+                if identifier:
+                    self._send_json(200, store.load(identifier).to_dict())
+                else:
+                    self._send_json(200, {"conversations": store.list()})
+            except ConversationError as exc:
+                self._send_error_json(404, str(exc))
+
+        def route_save_conversation(self) -> None:
+            store = self._store()
+            if store is None:
+                return
+            try:
+                saved = store.save(self._read_body())
+            except (ChatRequestError, ConversationError) as exc:
+                self._send_error_json(400, str(exc))
+                return
+            self._send_json(200, saved.summary())
+
+        def route_delete_conversation(self) -> None:
+            store = self._store()
+            if store is None:
+                return
+            try:
+                store.delete(self._query("id"))
+            except ConversationError as exc:
+                self._send_error_json(404, str(exc))
+                return
+            self._send_json(200, {"deleted": True})
+
+        def route_fetch(self) -> None:
+            try:
+                body = self._read_body()
+            except ChatRequestError as exc:
+                self._send_error_json(400, str(exc))
+                return
+            if not isinstance(body, Mapping) or not isinstance(body.get("url"), str):
+                self._send_error_json(400, "'url' must be a string")
+                return
+            try:
+                result = fetch_url(body["url"])
+            except FetchError as exc:
+                self._send_error_json(400, str(exc))
+                return
+            self._send_json(
+                200,
+                {
+                    "url": result.url,
+                    "final_url": result.final_url,
+                    "status": result.status,
+                    "content_type": result.content_type,
+                    "text": result.text,
+                    "truncated": result.truncated,
+                },
+            )
+
         def route_chat(self) -> None:
             try:
                 payload = build_chat_payload(
@@ -356,8 +434,14 @@ def make_handler(options: ServerOptions) -> type[BaseHTTPRequestHandler]:
                     "/api/models": self.route_models,
                     "/api/files": self.route_files,
                     "/api/file": self.route_file,
+                    "/api/conversations": self.route_conversations,
                 }
-            routes: dict[str, Callable[[], None]] = {"/api/chat": self.route_chat}
+            routes: dict[str, Callable[[], None]] = {
+                "/api/chat": self.route_chat,
+                "/api/conversations": self.route_save_conversation,
+                "/api/conversations/delete": self.route_delete_conversation,
+                "/api/fetch": self.route_fetch,
+            }
             # Running code exists only on a locally bound server. Not a flag
             # somebody can forget to unset -- bind outward and the route is
             # simply not there.

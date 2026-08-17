@@ -11,133 +11,113 @@
 <style>
   :root {
     color-scheme: light dark;
-    --bg: #fbfbfa;
-    --panel: #ffffff;
-    --border: #e2e2df;
-    --text: #1a1a19;
-    --muted: #6b6b66;
-    --accent: #2f6f5e;
-    --user-bg: #eef2f0;
-    --code-bg: #f4f4f2;
-    --danger: #a33a2a;
+    --bg: #fbfbfa; --panel: #ffffff; --sunk: #f4f4f2;
+    --border: #e2e2df; --text: #1a1a19; --muted: #6b6b66;
+    --accent: #2f6f5e; --user-bg: #eef2f0; --danger: #a33a2a; --warn: #8a6d1f;
     --radius: 10px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #17181a;
-      --panel: #1e2022;
-      --border: #32353a;
-      --text: #e8e8e6;
-      --muted: #9a9a95;
-      --accent: #6fbfa5;
-      --user-bg: #26292c;
-      --code-bg: #131416;
-      --danger: #e0806f;
+      --bg: #17181a; --panel: #1e2022; --sunk: #131416;
+      --border: #32353a; --text: #e8e8e6; --muted: #9a9a95;
+      --accent: #6fbfa5; --user-bg: #26292c; --danger: #e0806f; --warn: #d8b45f;
     }
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    display: flex;
-    flex-direction: column;
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column;
   }
-  header {
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
-  .sub { color: var(--muted); font-size: 13px; }
-  .spacer { flex: 1; }
   button, select, input, textarea {
-    font: inherit;
-    color: var(--text);
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 7px 10px;
+    font: inherit; color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
   }
   button { cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--accent); }
   button:disabled { opacity: 0.5; cursor: default; }
-  button.primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    font-weight: 500;
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+  button.small { font-size: 12px; padding: 3px 8px; }
+  button.link { border: none; background: none; padding: 2px 4px; color: var(--muted); }
+  button.link:hover { color: var(--accent); }
+
+  header {
+    border-bottom: 1px solid var(--border); background: var(--panel);
+    padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   }
-  select { max-width: 320px; }
-  #settings {
-    display: none;
-    gap: 14px;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
-  }
+  h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .spacer { flex: 1; }
+  label.toggle { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--muted); }
+
+  #settings { display: none; gap: 14px; flex-wrap: wrap; align-items: flex-end;
+    padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--panel); }
   #settings.open { display: flex; }
   .field { display: flex; flex-direction: column; gap: 4px; }
   .field label { font-size: 12px; color: var(--muted); }
-  .field input[type="number"] { width: 110px; }
-  .field.grow { flex: 1; min-width: 260px; }
-  .field.grow textarea { width: 100%; min-height: 60px; resize: vertical; }
-  main {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px 16px 8px;
+  .field input[type="number"] { width: 100px; }
+  .field.grow { flex: 1; min-width: 280px; }
+  .field.grow textarea { width: 100%; min-height: 70px; resize: vertical; }
+
+  .layout { flex: 1; display: flex; min-height: 0; }
+  aside {
+    width: 260px; border-right: 1px solid var(--border); background: var(--panel);
+    display: flex; flex-direction: column; min-height: 0;
   }
-  .thread { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
-  .msg { display: flex; flex-direction: column; gap: 5px; }
-  .who { font-size: 12px; color: var(--muted); font-weight: 500; }
+  aside.hidden { display: none; }
+  .tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .tabs button { flex: 1; border: none; border-radius: 0; background: none; color: var(--muted); padding: 9px 4px; }
+  .tabs button.active { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+  .panel { flex: 1; overflow-y: auto; padding: 8px; display: none; }
+  .panel.active { display: block; }
+  .row {
+    display: flex; align-items: center; gap: 6px; padding: 5px 7px;
+    border-radius: 7px; font-size: 13px; cursor: pointer;
+  }
+  .row:hover { background: var(--sunk); }
+  .row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .meta { color: var(--muted); font-size: 11px; }
+  .row.dir { color: var(--muted); font-weight: 500; cursor: default; }
+  .row.dir:hover { background: none; }
+  .empty { color: var(--muted); font-size: 13px; padding: 10px 7px; }
+
+  main { flex: 1; overflow-y: auto; padding: 18px 14px 6px; min-width: 0; }
+  .columns { display: flex; gap: 14px; align-items: flex-start; max-width: 1400px; margin: 0 auto; }
+  .column { flex: 1; min-width: 0; }
+  .column h2 { font-size: 12px; color: var(--muted); font-weight: 600; margin: 0 0 8px; }
+  .thread { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  .columns .thread { max-width: none; }
+  .msg { display: flex; flex-direction: column; gap: 4px; }
+  .who { font-size: 11px; color: var(--muted); font-weight: 500; }
   .body { white-space: pre-wrap; word-wrap: break-word; }
-  .msg.user .body {
-    background: var(--user-bg);
-    padding: 10px 13px;
-    border-radius: var(--radius);
-  }
+  .msg.user .body { background: var(--user-bg); padding: 9px 12px; border-radius: var(--radius); }
   .msg.error .body { color: var(--danger); }
-  pre {
-    background: var(--code-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px;
-    overflow-x: auto;
-    margin: 8px 0;
-    white-space: pre;
-  }
-  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13.5px; }
+  .msg.note .body { color: var(--muted); font-size: 13px; }
+
+  pre { background: var(--sunk); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 11px; overflow-x: auto; margin: 7px 0; white-space: pre; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
   .codewrap { position: relative; }
-  .copy {
-    position: absolute; top: 8px; right: 8px;
-    font-size: 12px; padding: 3px 8px; opacity: 0.75;
-  }
-  footer {
-    border-top: 1px solid var(--border);
-    background: var(--panel);
-    padding: 12px 16px;
-  }
-  .composer { max-width: 820px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
-  #prompt { flex: 1; resize: none; min-height: 46px; max-height: 220px; }
-  .hint { max-width: 820px; margin: 6px auto 0; font-size: 12px; color: var(--muted); }
-  .notice {
-    max-width: 820px; margin: 0 auto 18px;
-    border: 1px solid var(--border); border-left: 3px solid var(--accent);
-    border-radius: var(--radius); padding: 12px 14px;
-    font-size: 14px; color: var(--muted);
-  }
-  .blink::after {
-    content: "▌"; color: var(--accent);
-    animation: blink 1s steps(2, start) infinite;
-  }
+  .codebar { position: absolute; top: 7px; right: 7px; display: flex; gap: 5px; opacity: 0.85; }
+  .runout { border-left: 3px solid var(--accent); background: var(--sunk); border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 9px 11px; margin: 6px 0; font-size: 13px; }
+  .runout .head { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+  .runout pre { margin: 4px 0; border: none; background: none; padding: 0; }
+  .runout.bad { border-left-color: var(--danger); }
+
+  footer { border-top: 1px solid var(--border); background: var(--panel); padding: 10px 14px; }
+  .composer { max-width: 1400px; margin: 0 auto; display: flex; gap: 9px; align-items: flex-end; }
+  #prompt { flex: 1; resize: none; min-height: 44px; max-height: 200px; }
+  .chips { max-width: 1400px; margin: 0 auto 7px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: flex; align-items: center; gap: 5px; font-size: 12px; background: var(--sunk);
+    border: 1px solid var(--border); border-radius: 20px; padding: 2px 4px 2px 10px; color: var(--muted); }
+  .hint { max-width: 1400px; margin: 6px auto 0; font-size: 11.5px; color: var(--muted); }
+  .notice { max-width: 820px; margin: 0 auto 16px; border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 11px 13px;
+    font-size: 13.5px; color: var(--muted); }
+  .notice.warn { border-left-color: var(--warn); }
+  .blink::after { content: "▌"; color: var(--accent); animation: blink 1s steps(2, start) infinite; }
   @keyframes blink { to { visibility: hidden; } }
 </style>
 </head>
@@ -148,15 +128,18 @@
   <span class="sub" id="provider"></span>
   <span class="spacer"></span>
   <select id="model" aria-label="Model"></select>
-  <button id="toggle-settings" aria-expanded="false">Settings</button>
-  <button id="clear">New chat</button>
+  <select id="model-b" aria-label="Second model" hidden></select>
+  <label class="toggle"><input type="checkbox" id="compare"> compare</label>
+  <button id="toggle-sidebar" class="small">Sidebar</button>
+  <button id="toggle-settings" class="small" aria-expanded="false">Settings</button>
+  <button id="new-chat" class="small">New chat</button>
 </header>
 
 <div id="settings">
   <div class="field grow">
-    <label for="system">System prompt &middot; the personality, loaded from prompts/caracat_persona.md</label>
+    <label for="system">System prompt &middot; the personality, from prompts/caracat_persona.md</label>
     <textarea id="system" spellcheck="false"></textarea>
-    <button id="reset-system" type="button">Reset to the shipped personality</button>
+    <button id="reset-system" class="small">Reset to the shipped personality</button>
   </div>
   <div class="field">
     <label for="temperature">Temperature</label>
@@ -172,24 +155,44 @@
   </div>
 </div>
 
-<main>
-  <div class="thread" id="thread">
-    <div class="notice" id="intro">
-      Talking to the base model <strong>Qwen3-Coder-Next</strong> through your own
-      provider. No Caracat weights have been trained yet, so there is nothing else
-      to connect to. Your API key stays in the local server process and is never
-      sent to this page.
+<div class="layout">
+  <aside id="sidebar">
+    <div class="tabs">
+      <button id="tab-chats" class="active">Chats</button>
+      <button id="tab-files">Files</button>
     </div>
-  </div>
-</main>
+    <div class="panel active" id="panel-chats"></div>
+    <div class="panel" id="panel-files"></div>
+  </aside>
+
+  <main>
+    <div class="columns" id="columns">
+      <div class="column" id="col-a">
+        <h2 id="head-a" hidden></h2>
+        <div class="thread" id="thread">
+          <div class="notice" id="intro">
+            Talking to the base model <strong>Qwen3-Coder-Next</strong> through your own
+            provider. No Caracat weights have been trained yet, so there is nothing else
+            to connect to. Your API key stays in the local server and never reaches this page.
+          </div>
+        </div>
+      </div>
+      <div class="column" id="col-b" hidden>
+        <h2 id="head-b"></h2>
+        <div class="thread" id="thread-b"></div>
+      </div>
+    </div>
+  </main>
+</div>
 
 <footer>
+  <div class="chips" id="chips"></div>
   <div class="composer">
     <textarea id="prompt" placeholder="Ask something about code…" rows="1"></textarea>
     <button id="send" class="primary">Send</button>
     <button id="stop" hidden>Stop</button>
   </div>
-  <div class="hint">Enter sends · Shift+Enter for a new line · conversation lives only in this tab</div>
+  <div class="hint" id="hint">Enter sends · Shift+Enter for a new line</div>
 </footer>
 
 <script>
@@ -197,70 +200,40 @@
   "use strict";
 
   const $ = (id) => document.getElementById(id);
-  const thread = $("thread");
-  const modelSelect = $("model");
-  const promptBox = $("prompt");
+  const URL_PATTERN = /https?:\/\/[^\s<>"')]+/g;
 
   const store = {
     get(key, fallback) {
       try { const v = localStorage.getItem("caracat." + key); return v === null ? fallback : v; }
       catch (e) { return fallback; }
     },
-    set(key, value) {
-      try { localStorage.setItem("caracat." + key, value); } catch (e) { /* private mode */ }
-    }
+    set(key, value) { try { localStorage.setItem("caracat." + key, value); } catch (e) {} }
   };
 
+  let config = {};
   let messages = [];
-  let controller = null;
+  let messagesB = [];
+  let controllers = [];
   let allModels = [];
   let defaultSystemPrompt = "";
+  let attached = [];        // {path, text}
+  let conversationId = null;
 
-  // ---- rendering ----------------------------------------------------
+  // ---- small helpers -------------------------------------------------
 
-  function addMessage(role, cssClass) {
-    const wrap = document.createElement("div");
-    wrap.className = "msg " + (cssClass || role);
-    const who = document.createElement("div");
-    who.className = "who";
-    who.textContent = role === "user" ? "You" : role === "error" ? "Error" : "Caracat Code";
-    const body = document.createElement("div");
-    body.className = "body";
-    wrap.append(who, body);
-    thread.append(wrap);
-    return body;
+  async function api(path, options) {
+    const response = await fetch(path, options);
+    const type = response.headers.get("Content-Type") || "";
+    const data = type.includes("json") ? await response.json().catch(() => ({})) : {};
+    if (!response.ok) throw new Error(data.error || ("HTTP " + response.status));
+    return data;
   }
 
-  // Model output is never inserted as HTML. Text goes in as textContent and
-  // fenced blocks become <pre><code>, so nothing the model returns can run.
-  function renderContent(target, text) {
-    target.textContent = "";
-    const parts = text.split(/```/);
-    parts.forEach((part, index) => {
-      if (index % 2 === 0) {
-        if (part) target.append(document.createTextNode(part));
-        return;
-      }
-      const newline = part.indexOf("\n");
-      const code = newline === -1 ? part : part.slice(newline + 1);
-      const wrap = document.createElement("div");
-      wrap.className = "codewrap";
-      const pre = document.createElement("pre");
-      const el = document.createElement("code");
-      el.textContent = code;
-      pre.append(el);
-      const copy = document.createElement("button");
-      copy.className = "copy";
-      copy.textContent = "Copy";
-      copy.addEventListener("click", () => {
-        navigator.clipboard.writeText(code).then(
-          () => { copy.textContent = "Copied"; setTimeout(() => { copy.textContent = "Copy"; }, 1200); },
-          () => { copy.textContent = "Failed"; }
-        );
-      });
-      wrap.append(pre, copy);
-      target.append(wrap);
-    });
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
   }
 
   function scrollDown() {
@@ -268,123 +241,281 @@
     main.scrollTop = main.scrollHeight;
   }
 
-  function showError(text) {
-    const body = addMessage("error", "error");
-    body.textContent = text;
-    scrollDown();
+  // ---- rendering -----------------------------------------------------
+
+  function addMessage(threadId, role, cssClass) {
+    const wrap = el("div", "msg " + (cssClass || role));
+    const labels = { user: "You", error: "Error", note: "" };
+    wrap.append(el("div", "who", labels[cssClass || role] !== undefined
+      ? labels[cssClass || role] : "Caracat Code"));
+    const body = el("div", "body");
+    wrap.append(body);
+    $(threadId).append(wrap);
+    return body;
   }
 
-  // ---- models -------------------------------------------------------
+  // Model output is never inserted as HTML. Text becomes text nodes and fenced
+  // blocks become <pre><code>, so nothing a model returns can execute here.
+  function renderContent(target, text) {
+    target.textContent = "";
+    text.split(/```/).forEach((part, index) => {
+      if (index % 2 === 0) {
+        if (part) target.append(document.createTextNode(part));
+        return;
+      }
+      const newline = part.indexOf("\n");
+      const language = (newline === -1 ? "" : part.slice(0, newline)).trim().toLowerCase();
+      const code = newline === -1 ? part : part.slice(newline + 1);
 
-  function fillModels() {
-    const filter = $("modelfilter").value.trim().toLowerCase();
-    const wanted = store.get("model", "");
-    const shown = filter ? allModels.filter((id) => id.toLowerCase().includes(filter)) : allModels;
-    modelSelect.textContent = "";
-    if (!shown.length) {
-      const opt = document.createElement("option");
-      opt.textContent = allModels.length ? "no match for filter" : "no models available";
-      opt.value = "";
-      modelSelect.append(opt);
-      return;
-    }
-    shown.forEach((id) => {
-      const opt = document.createElement("option");
-      opt.value = id;
-      opt.textContent = id;
-      if (id === wanted) opt.selected = true;
-      modelSelect.append(opt);
+      const wrap = el("div", "codewrap");
+      const pre = el("pre");
+      const codeEl = el("code", null, code);
+      pre.append(codeEl);
+
+      const bar = el("div", "codebar");
+      const copy = el("button", "small", "Copy");
+      copy.addEventListener("click", () => {
+        navigator.clipboard.writeText(code).then(
+          () => { copy.textContent = "Copied"; setTimeout(() => { copy.textContent = "Copy"; }, 1200); },
+          () => { copy.textContent = "Failed"; }
+        );
+      });
+      bar.append(copy);
+
+      if (config.can_run_code && (language === "python" || language === "py")) {
+        const run = el("button", "small", "Run");
+        run.addEventListener("click", () => runCode(code, wrap, run));
+        bar.append(run);
+      }
+      wrap.append(pre, bar);
+      target.append(wrap);
     });
   }
 
-  async function loadModels(defaultModel) {
-    try {
-      const res = await fetch("/api/models");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
-      allModels = (data.data || data.models || [])
-        .map((m) => (typeof m === "string" ? m : m.id))
-        .filter(Boolean)
-        .sort();
-    } catch (err) {
-      allModels = [];
-      showError("Could not load the model list: " + err.message +
-        "\nYou can still type a model into the server's --model option.");
-    }
-    if (defaultModel && !allModels.includes(defaultModel)) allModels.unshift(defaultModel);
-    if (defaultModel && !store.get("model", "")) store.set("model", defaultModel);
-    if (!$("modelfilter").value && allModels.some((id) => id.toLowerCase().includes("qwen"))) {
-      $("modelfilter").value = store.get("filter", "qwen");
-    }
-    fillModels();
+  function showError(threadId, text) {
+    addMessage(threadId, "error", "error").textContent = text;
+    scrollDown();
   }
 
-  // ---- sending ------------------------------------------------------
+  function showNote(threadId, text) {
+    addMessage(threadId, "note", "note").textContent = text;
+  }
 
-  async function send() {
-    const text = promptBox.value.trim();
-    if (!text || controller) return;
+  // ---- running code --------------------------------------------------
 
-    const model = modelSelect.value;
-    if (!model) { showError("Select a model first."); return; }
+  async function runCode(code, container, button) {
+    button.disabled = true;
+    button.textContent = "Running…";
+    const previous = container.querySelector(".runout");
+    if (previous) previous.remove();
 
-    $("intro")?.remove();
-    promptBox.value = "";
-    promptBox.style.height = "auto";
+    const output = el("div", "runout");
+    output.append(el("div", "head", "Running in a temporary directory, on copies. Not a container — code runs as you."));
+    container.append(output);
 
-    renderContent(addMessage("user"), text);
-    messages.push({ role: "user", content: text });
-    scrollDown();
+    try {
+      const result = await api("/api/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code, files: attached.map((f) => f.path) })
+      });
+      output.textContent = "";
+      output.classList.toggle("bad", !result.succeeded);
+      const head = result.succeeded
+        ? `finished in ${result.duration_seconds}s`
+        : (result.timed_out ? "stopped at the time limit" : `exit code ${result.exit_code}`);
+      output.append(el("div", "head", head));
+      if (result.stdout) output.append(el("pre", null, result.stdout));
+      if (result.stderr) output.append(el("pre", null, result.stderr));
+      if (!result.stdout && !result.stderr) output.append(el("div", "head", "(no output)"));
+      if (result.produced_files.length) {
+        output.append(el("div", "head", "new or changed files: " + result.produced_files.join(", ")));
+      }
+    } catch (err) {
+      output.classList.add("bad");
+      output.textContent = err.message;
+    } finally {
+      button.disabled = false;
+      button.textContent = "Run";
+    }
+  }
 
-    const body = addMessage("assistant");
-    body.classList.add("blink");
+  // ---- the sidebar ---------------------------------------------------
 
+  function selectTab(which) {
+    ["chats", "files"].forEach((name) => {
+      $("tab-" + name).classList.toggle("active", name === which);
+      $("panel-" + name).classList.toggle("active", name === which);
+    });
+    store.set("tab", which);
+  }
+
+  async function refreshChats() {
+    const panel = $("panel-chats");
+    panel.textContent = "";
+    if (!config.can_save_conversations) {
+      panel.append(el("div", "empty", "Saving is switched off (--no-save)."));
+      return;
+    }
+    let listed = [];
+    try { listed = (await api("/api/conversations")).conversations; }
+    catch (err) { panel.append(el("div", "empty", err.message)); return; }
+
+    if (!listed.length) {
+      panel.append(el("div", "empty", "No saved chats yet. They are saved automatically once you send something."));
+      return;
+    }
+    listed.forEach((item) => {
+      const row = el("div", "row");
+      const name = el("div", "name", item.title);
+      name.title = `${item.message_count} messages · ${item.updated_at}`;
+      row.append(name);
+      const remove = el("button", "link small", "×");
+      remove.title = "Delete";
+      remove.addEventListener("click", async (event) => {
+        event.stopPropagation();
+        await api("/api/conversations/delete?id=" + encodeURIComponent(item.id), { method: "POST", body: "{}" , headers: {"Content-Type": "application/json"}});
+        if (conversationId === item.id) newChat();
+        refreshChats();
+      });
+      row.append(remove);
+      row.addEventListener("click", () => openChat(item.id));
+      panel.append(row);
+    });
+  }
+
+  async function openChat(id) {
+    try {
+      const data = await api("/api/conversations?id=" + encodeURIComponent(id));
+      newChat(true);
+      conversationId = data.id;
+      messages = data.messages.filter((m) => m.role !== "system");
+      messages.forEach((message) => {
+        renderContent(addMessage("thread", message.role), message.content);
+      });
+      scrollDown();
+    } catch (err) { showError("thread", err.message); }
+  }
+
+  async function refreshFiles() {
+    const panel = $("panel-files");
+    panel.textContent = "";
+    if (!config.project_dir) {
+      panel.append(el("div", "empty", "No project open. Start the server with --project-dir <path>."));
+      return;
+    }
+    let entries = [];
+    try { entries = (await api("/api/files")).entries; }
+    catch (err) { panel.append(el("div", "empty", err.message)); return; }
+
+    entries.forEach((entry) => {
+      const depth = entry.path.split("/").length - 1;
+      const row = el("div", "row" + (entry.is_dir ? " dir" : ""));
+      row.style.paddingLeft = 7 + depth * 11 + "px";
+      row.append(el("div", "name", entry.path.split("/").pop()));
+      if (!entry.is_dir) {
+        row.append(el("div", "meta", entry.size > 1024
+          ? Math.round(entry.size / 1024) + " kB" : entry.size + " B"));
+        row.addEventListener("click", () => attachFile(entry.path));
+        row.title = "Attach " + entry.path;
+      }
+      panel.append(row);
+    });
+  }
+
+  async function attachFile(path) {
+    if (attached.some((file) => file.path === path)) return;
+    try {
+      const data = await api("/api/file?path=" + encodeURIComponent(path));
+      attached.push({ path: data.path, text: data.text });
+      renderChips();
+    } catch (err) {
+      showError("thread", err.message);
+    }
+  }
+
+  function renderChips() {
+    const bar = $("chips");
+    bar.textContent = "";
+    attached.forEach((file) => {
+      const chip = el("div", "chip");
+      chip.append(document.createTextNode(file.path));
+      const remove = el("button", "link small", "×");
+      remove.addEventListener("click", () => {
+        attached = attached.filter((f) => f.path !== file.path);
+        renderChips();
+      });
+      chip.append(remove);
+      bar.append(chip);
+    });
+  }
+
+  // ---- fetching ------------------------------------------------------
+
+  async function fetchMentionedUrls(text) {
+    const urls = Array.from(new Set(text.match(URL_PATTERN) || [])).slice(0, 3);
+    const fetched = [];
+    for (const url of urls) {
+      try {
+        const data = await api("/api/fetch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: url })
+        });
+        fetched.push(data);
+        showNote("thread", `fetched ${data.final_url} (${data.text.length} characters${data.truncated ? ", cut off" : ""})`);
+      } catch (err) {
+        showNote("thread", `could not fetch ${url}: ${err.message}`);
+      }
+    }
+    return fetched;
+  }
+
+  // ---- sending -------------------------------------------------------
+
+  function buildOutgoing(history) {
     const outgoing = [];
     const system = $("system").value.trim();
     if (system) outgoing.push({ role: "system", content: system });
-    outgoing.push(...messages);
+    return outgoing.concat(history);
+  }
 
-    controller = new AbortController();
-    $("send").disabled = true;
-    $("stop").hidden = false;
-
+  async function stream(model, threadId, history, signal) {
+    const body = addMessage(threadId, "assistant");
+    body.classList.add("blink");
     let answer = "";
     try {
-      const res = await fetch("/api/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
+        signal: signal,
         body: JSON.stringify({
           model: model,
-          messages: outgoing,
+          messages: buildOutgoing(history),
           temperature: Number($("temperature").value),
           max_tokens: Number($("maxtokens").value)
         })
       });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || ("HTTP " + res.status));
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || ("HTTP " + response.status));
       }
-
-      const reader = res.body.getReader();
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop();
-
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed.startsWith("data:")) continue;
-          const payload = trimmed.slice(5).trim();
-          if (payload === "[DONE]") continue;
+          const raw = trimmed.slice(5).trim();
+          if (raw === "[DONE]") continue;
           let chunk;
-          try { chunk = JSON.parse(payload); } catch (e) { continue; }
+          try { chunk = JSON.parse(raw); } catch (e) { continue; }
           if (chunk.error) throw new Error(chunk.error.message || String(chunk.error));
           const delta = chunk.choices && chunk.choices[0] && chunk.choices[0].delta;
           if (delta && delta.content) {
@@ -394,62 +525,183 @@
           }
         }
       }
-
-      if (answer) {
-        messages.push({ role: "assistant", content: answer });
-      } else {
-        body.textContent = "(the model returned nothing)";
-      }
+      if (!answer) body.textContent = "(the model returned nothing)";
+      return answer;
     } catch (err) {
       if (err.name === "AbortError") {
-        if (answer) messages.push({ role: "assistant", content: answer });
-        else body.textContent = "(stopped)";
-      } else {
-        if (!answer) body.parentElement.remove();
-        showError(err.message);
+        if (!answer) body.textContent = "(stopped)";
+        return answer;
       }
+      if (!answer) body.parentElement.remove();
+      showError(threadId, err.message);
+      return "";
     } finally {
       body.classList.remove("blink");
-      controller = null;
-      $("send").disabled = false;
-      $("stop").hidden = true;
-      promptBox.focus();
     }
   }
 
-  // ---- wiring -------------------------------------------------------
+  async function send() {
+    const text = $("prompt").value.trim();
+    if (!text || controllers.length) return;
+    const model = $("model").value;
+    if (!model) { showError("thread", "Select a model first."); return; }
+    const comparing = $("compare").checked;
+    const modelB = $("model-b").value;
+
+    $("intro") && $("intro").remove();
+    $("prompt").value = "";
+    $("prompt").style.height = "auto";
+
+    renderContent(addMessage("thread", "user"), text);
+    if (comparing) renderContent(addMessage("thread-b", "user"), text);
+    scrollDown();
+
+    let content = text;
+    const fetched = await fetchMentionedUrls(text);
+    fetched.forEach((doc) => {
+      content += `\n\n--- fetched from ${doc.final_url} ---\n${doc.text}`;
+    });
+    attached.forEach((file) => {
+      content += `\n\n--- ${file.path} ---\n${file.text}`;
+    });
+
+    messages.push({ role: "user", content: content });
+    if (comparing) messagesB.push({ role: "user", content: content });
+
+    $("send").disabled = true;
+    $("stop").hidden = false;
+    const first = new AbortController();
+    controllers = [first];
+    const runs = [stream(model, "thread", messages, first.signal)];
+    if (comparing && modelB) {
+      const second = new AbortController();
+      controllers.push(second);
+      runs.push(stream(modelB, "thread-b", messagesB, second.signal));
+    }
+
+    const [answerA, answerB] = await Promise.all(runs);
+    if (answerA) messages.push({ role: "assistant", content: answerA });
+    if (answerB) messagesB.push({ role: "assistant", content: answerB });
+
+    controllers = [];
+    $("send").disabled = false;
+    $("stop").hidden = true;
+    $("prompt").focus();
+    saveChat(text);
+  }
+
+  async function saveChat(firstLine) {
+    if (!config.can_save_conversations || !messages.length) return;
+    try {
+      const saved = await api("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: conversationId,
+          title: conversationId ? undefined : firstLine.slice(0, 80),
+          model: $("model").value,
+          messages: messages
+        })
+      });
+      conversationId = saved.id;
+      refreshChats();
+    } catch (err) { /* saving must never break the conversation */ }
+  }
+
+  function newChat(keepSidebar) {
+    messages = []; messagesB = []; conversationId = null; attached = [];
+    $("thread").textContent = ""; $("thread-b").textContent = "";
+    renderChips();
+    if (!keepSidebar) $("prompt").focus();
+  }
+
+  // ---- models --------------------------------------------------------
+
+  function fillModels() {
+    const filter = $("modelfilter").value.trim().toLowerCase();
+    const shown = filter ? allModels.filter((id) => id.toLowerCase().includes(filter)) : allModels;
+    [["model", "model"], ["model-b", "modelB"]].forEach(([id, key]) => {
+      const select = $(id);
+      const wanted = store.get(key, "");
+      select.textContent = "";
+      if (!shown.length) {
+        const option = el("option", null, allModels.length ? "no match for filter" : "no models available");
+        option.value = "";
+        select.append(option);
+        return;
+      }
+      shown.forEach((modelId) => {
+        const option = el("option", null, modelId);
+        option.value = modelId;
+        if (modelId === wanted) option.selected = true;
+        select.append(option);
+      });
+    });
+  }
+
+  async function loadModels() {
+    try {
+      const data = await api("/api/models");
+      allModels = (data.data || data.models || [])
+        .map((m) => (typeof m === "string" ? m : m.id)).filter(Boolean).sort();
+    } catch (err) {
+      allModels = [];
+      showError("thread", "Could not load the model list: " + err.message);
+    }
+    if (config.default_model && !allModels.includes(config.default_model)) {
+      allModels.unshift(config.default_model);
+    }
+    if (config.default_model && !store.get("model", "")) store.set("model", config.default_model);
+    if (!$("modelfilter").value) $("modelfilter").value = store.get("filter", "");
+    fillModels();
+  }
+
+  // ---- wiring --------------------------------------------------------
 
   $("send").addEventListener("click", send);
-  $("stop").addEventListener("click", () => controller && controller.abort());
+  $("stop").addEventListener("click", () => controllers.forEach((c) => c.abort()));
+  $("new-chat").addEventListener("click", () => newChat());
 
-  promptBox.addEventListener("keydown", (event) => {
+  $("prompt").addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); }
   });
-  promptBox.addEventListener("input", () => {
-    promptBox.style.height = "auto";
-    promptBox.style.height = Math.min(promptBox.scrollHeight, 220) + "px";
+  $("prompt").addEventListener("input", () => {
+    $("prompt").style.height = "auto";
+    $("prompt").style.height = Math.min($("prompt").scrollHeight, 200) + "px";
   });
 
   $("toggle-settings").addEventListener("click", (event) => {
     const open = $("settings").classList.toggle("open");
     event.target.setAttribute("aria-expanded", String(open));
   });
+  $("toggle-sidebar").addEventListener("click", () => {
+    const hidden = $("sidebar").classList.toggle("hidden");
+    store.set("sidebar", hidden ? "hidden" : "shown");
+  });
+  $("tab-chats").addEventListener("click", () => selectTab("chats"));
+  $("tab-files").addEventListener("click", () => selectTab("files"));
 
-  $("clear").addEventListener("click", () => {
-    messages = [];
-    thread.textContent = "";
-    promptBox.focus();
+  $("compare").addEventListener("change", () => {
+    const on = $("compare").checked;
+    $("model-b").hidden = !on;
+    $("col-b").hidden = !on;
+    $("head-a").hidden = !on;
+    if (on) { $("head-a").textContent = $("model").value; $("head-b").textContent = $("model-b").value; }
+    store.set("compare", on ? "1" : "");
   });
 
-  modelSelect.addEventListener("change", () => store.set("model", modelSelect.value));
-  $("modelfilter").addEventListener("input", () => {
-    store.set("filter", $("modelfilter").value);
-    fillModels();
+  $("model").addEventListener("change", () => {
+    store.set("model", $("model").value);
+    $("head-a").textContent = $("model").value;
   });
+  $("model-b").addEventListener("change", () => {
+    store.set("modelB", $("model-b").value);
+    $("head-b").textContent = $("model-b").value;
+  });
+  $("modelfilter").addEventListener("input", () => { store.set("filter", $("modelfilter").value); fillModels(); });
   $("system").addEventListener("change", () => store.set("system", $("system").value));
   $("temperature").addEventListener("change", () => store.set("temperature", $("temperature").value));
   $("maxtokens").addEventListener("change", () => store.set("maxtokens", $("maxtokens").value));
-
   $("reset-system").addEventListener("click", () => {
     $("system").value = defaultSystemPrompt;
     store.set("system", defaultSystemPrompt);
@@ -458,22 +710,31 @@
   $("system").value = store.get("system", "");
   $("temperature").value = store.get("temperature", "0.2");
   $("maxtokens").value = store.get("maxtokens", "4096");
+  if (store.get("sidebar", "shown") === "hidden") $("sidebar").classList.add("hidden");
+  selectTab(store.get("tab", "chats"));
 
-  fetch("/api/config")
-    .then((r) => r.json())
-    .then((cfg) => {
-      $("provider").textContent = cfg.api_base;
-      defaultSystemPrompt = cfg.default_system_prompt || "";
-      // Only prefill when nothing was ever saved here. An edited prompt has to
-      // survive a reload -- overwriting it would throw the edit away silently.
-      if (store.get("system", null) === null) {
-        $("system").value = defaultSystemPrompt;
-      }
-      return loadModels(cfg.default_model);
-    })
-    .catch(() => showError("Could not reach the local server."));
+  api("/api/config").then((cfg) => {
+    config = cfg;
+    $("provider").textContent = cfg.api_base;
+    defaultSystemPrompt = cfg.default_system_prompt || "";
+    // Only prefill when nothing was ever saved. An edited prompt has to survive
+    // a reload -- overwriting it would throw the edit away silently.
+    if (store.get("system", null) === null) $("system").value = defaultSystemPrompt;
 
-  promptBox.focus();
+    const parts = [];
+    if (cfg.project_dir) parts.push("project: " + cfg.project_dir);
+    if (cfg.can_run_code) parts.push("running Python is possible — limits apply, but this is not a container");
+    if (!cfg.can_save_conversations) parts.push("chats are not saved");
+    if (parts.length) $("hint").textContent = "Enter sends · Shift+Enter for a new line · " + parts.join(" · ");
+
+    if (store.get("compare", "")) { $("compare").checked = true; $("compare").dispatchEvent(new Event("change")); }
+    return loadModels();
+  }).then(() => {
+    refreshChats();
+    refreshFiles();
+  }).catch(() => showError("thread", "Could not reach the local server."));
+
+  $("prompt").focus();
 })();
 </script>
 </body>

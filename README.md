@@ -71,7 +71,8 @@ THIRD_PARTY_LICENSES.md   third-party components and their licenses
 SECURITY.md               vulnerability reporting and secret-handling policy
 docs/FINETUNING.md        worksheet to complete before a training run
 hf/                       exactly what is published to Hugging Face
-interface/                the local chat interface page
+interface/                the local interface page
+prompts/                  the personality, as an editable file
 src/caracat_code/         project library
 scripts/                  train.py, evaluate.py, prepare_dataset.py, serve_interface.py
 configs/                  example training configurations and dataset
@@ -158,16 +159,48 @@ and each one has to be recorded in
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) with its license read from
 the primary source first.
 
-### Trying the model in a browser
+### Using Caracat Code
 
-`scripts/serve_interface.py` starts a small chat interface on your own machine.
+`scripts/serve_interface.py` starts the interface on your own machine.
 
 ```bash
 export CARACAT_API_KEY='your-provider-key'
-python scripts/serve_interface.py
+python scripts/serve_interface.py --project-dir ~/my-project
 ```
 
 Then open <http://127.0.0.1:8765>.
+
+What it can do beyond chatting:
+
+| Feature | How |
+|---|---|
+| **Read your project** | `--project-dir <path>`; click a file in the sidebar to attach it |
+| **Run Python** | a `Run` button on every Python block the model returns |
+| **Keep conversations** | saved automatically, listed in the sidebar |
+| **Compare two models** | the `compare` toggle answers the same question twice, side by side |
+| **Fetch web pages** | URLs in your message are fetched and attached automatically |
+
+The personality lives in [`prompts/caracat_persona.md`](prompts/caracat_persona.md) —
+an ordinary text file. Edit a line, reload the page, and the behaviour changes.
+Its first rule is the one that matters most: **ask instead of guessing**.
+
+#### The limits, plainly
+
+- **Running code is not a container.** Time, memory, output size and open files
+  are capped, children are killed with the parent, and the run happens in a
+  throwaway directory with an environment built from nothing — your API key is
+  provably invisible to it. But the code runs as your user: it can reach the
+  network and read what you can read. Don't run code you don't understand. The
+  route only exists when the server is bound to a local address.
+- **Your files are copied, never opened in place.** A wrong script destroys a
+  copy. Files it created or changed are listed afterwards.
+- **A file holding something credential-shaped is not sent.** Not to the
+  provider, not into a run. The message names the line, never the value.
+- **Fetching is automatic and internal addresses are blocked** — loopback,
+  private ranges, and the cloud metadata address. Every redirect hop is
+  re-checked. No credentials are ever attached to a fetch.
+- **Conversations are stored outside the repository**, so they cannot be
+  committed by accident.
 
 **What it talks to.** No Caracat weights have been trained yet, so there is
 nothing of our own to connect to. The interface speaks the OpenAI-compatible

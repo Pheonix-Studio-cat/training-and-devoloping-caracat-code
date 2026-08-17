@@ -26,6 +26,11 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 if _SRC.is_dir() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
+from caracat_code.conversations import (  # noqa: E402
+    ConversationError,
+    ConversationStore,
+    default_store_path,
+)
 from caracat_code.interface import (  # noqa: E402
     DEFAULT_API_BASE,
     DEFAULT_HOST,
@@ -96,6 +101,19 @@ def build_parser() -> argparse.ArgumentParser:
             "everything else is scanned before it is sent anywhere."
         ),
     )
+    saving = parser.add_argument_group("conversations")
+    saving.add_argument(
+        "--conversations-dir",
+        type=Path,
+        help=(
+            "Where conversations are stored "
+            f"(default: {default_store_path()}). Deliberately outside the "
+            "repository, so they are never committed by accident."
+        ),
+    )
+    saving.add_argument(
+        "--no-save", action="store_true", help="Do not store conversations at all."
+    )
     return parser
 
 
@@ -129,6 +147,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Cannot start the interface:\n\n{exc}", file=sys.stderr)
             return 2
 
+    conversations: ConversationStore | None = None
+    if not args.no_save:
+        try:
+            conversations = ConversationStore.open(args.conversations_dir)
+        except ConversationError as exc:
+            print(f"Cannot start the interface:\n\n{exc}", file=sys.stderr)
+            return 2
+
     try:
         index_html = read_index(INDEX_PATH)
     except FileNotFoundError as exc:
@@ -140,6 +166,7 @@ def main(argv: list[str] | None = None) -> int:
         index_html=index_html,
         system_prompt=system_prompt,
         workspace=workspace,
+        conversations=conversations,
     )
 
     if not config.is_local_only:
@@ -159,6 +186,7 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"Project:     {workspace.root if workspace else '(none, use --project-dir)'}"
     )
+    print(f"Saved chats: {conversations.root if conversations else '(off)'}")
     print("Press Ctrl+C to stop.")
 
     try:

@@ -38,6 +38,32 @@ This project uses two secrets, and neither is ever stored in the repository:
   redacted out of any provider error before it is displayed. There is no
   command-line flag for it, so it does not land in your shell history.
 
+## Running code, reading files, fetching URLs
+
+The interface can do three things that deserve stating outright.
+
+**Running Python** caps CPU time, memory, output size, file size and open file
+descriptors, kills the process group on timeout, uses a throwaway working
+directory, and builds the child's environment from an allowlist so no secret in
+your shell reaches it. It is **not a container**: the code runs as your user and
+can reach the network and your files. The route is only registered when the
+server is bound to a local address, so it cannot be exposed by forgetting a
+flag.
+
+**Reading project files** is confined to the one directory passed with
+`--project-dir`. Paths are resolved before use, so `../` and symlinks pointing
+outward are refused. Credential files are unreachable by name, and every file is
+scanned before it is returned: a file that appears to hold a key is refused with
+the line number, never the value. Sending a file to a provider cannot be undone.
+
+**Fetching URLs** happens without a per-request confirmation, by the project
+owner's decision. Internal addresses stay blocked regardless — loopback, private
+ranges, link-local (including the cloud metadata address) — and every redirect
+hop is re-checked. Only `http` and `https`; no credentials are attached;
+responses are capped and must be text. The residual risk is stated in the
+interface: model output is not trusted input, so every fetch is visible in the
+conversation.
+
 ## Workflow permissions
 
 Every workflow job declares the minimum `permissions:` it needs. Third-party
