@@ -105,12 +105,39 @@ def test_the_original_is_untouched_because_only_bytes_are_passed() -> None:
 
 
 def test_a_program_that_never_ends_is_stopped() -> None:
+    """Stopped, and said so.
+
+    Which ceiling fires first is a race: a busy loop burns CPU as fast as the
+    clock runs, so the wall-clock timeout and the CPU allowance finish neck and
+    neck. The guarantee worth testing is the one the person sees -- the program
+    is stopped, and the reason is stated rather than shown as a bare signal.
+    """
     result = run("while True: pass", limits=SandboxLimits(timeout_seconds=2.0))
 
-    assert result.timed_out
-    assert result.exit_code is None
-    assert "stopped after 2 seconds" in result.stderr
+    assert result.stopped_by_limit
+    assert not result.succeeded
+    assert "the program was stopped" in result.stderr
     assert result.duration_seconds < 20
+
+
+def test_a_run_killed_by_a_ceiling_explains_itself() -> None:
+    """A memory kill must not surface as an unexplained negative exit code."""
+    result = run(
+        "x = bytearray(400 * 1024 * 1024)",
+        limits=SandboxLimits(timeout_seconds=10.0, memory_mb=128),
+    )
+
+    assert not result.succeeded
+    if result.exit_code is not None and result.exit_code < 0:
+        assert result.stopped_by_limit
+        assert "the program was stopped" in result.stderr
+
+
+def test_a_normal_failure_is_not_reported_as_a_limit() -> None:
+    result = run("raise SystemExit(3)")
+
+    assert not result.stopped_by_limit
+    assert result.exit_code == 3
 
 
 def test_a_runaway_allocation_is_stopped() -> None:
