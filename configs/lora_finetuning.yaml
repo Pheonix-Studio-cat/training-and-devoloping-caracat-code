@@ -1,0 +1,73 @@
+# LoRA fine-tuning configuration for Caracat Code.
+#
+# Validate it with:
+#   python scripts/train.py --config configs/lora_finetuning.yaml --validate-only
+#
+# Training is not implemented yet. This file exists so that the decisions can be
+# written down, reviewed and validated before any GPU time is paid for. Work
+# through docs/FINETUNING.md alongside it.
+
+run_name: caracat-code-lora-01
+output_dir: outputs/caracat-code-lora-01
+seed: 42
+
+model:
+  # Caracat Code is based on Qwen3-Coder-Next by Qwen.
+  base_model: Qwen/Qwen3-Coder-Next
+  # Pin a revision before a real run, so the same weights can be used again.
+  revision: null
+  quantization: null
+  trust_remote_code: false
+
+# How the model is adapted.
+#
+#   lora   trains small added matrices; base weights untouched; artifact is a
+#          small adapter file; reversible; the normal starting point
+#   qlora  the same, on top of a quantized base model; less memory, some
+#          quality cost
+#   full   updates every weight; the whole model must fit in memory, which for
+#          a model of this size means datacenter hardware
+#
+# rank and alpha have no defaults you should accept without thinking. Higher
+# rank means more capacity to learn and a larger adapter. The values below are
+# a common starting point, not a measured recommendation.
+method:
+  kind: lora
+  rank: 16
+  alpha: 32
+  dropout: 0.05
+  # Which layers get an adapter. Leave empty to use the trainer's default for
+  # this architecture; fill it in once you know the module names of the base
+  # model.
+  target_modules: []
+
+hyperparameters:
+  learning_rate: 1.0e-4
+  epochs: 2
+  batch_size: 1
+  gradient_accumulation_steps: 16
+  max_sequence_length: 4096
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+
+commercial_use_intended: false
+allow_personal_data: false
+
+# Prepare data with scripts/prepare_dataset.py first, then declare it here.
+# Every field is required; a dataset whose license is "unknown" fails validation
+# and this configuration will not load.
+#
+# datasets:
+#   - name: my-examples
+#     source: hand-written, own work
+#     license: Apache-2.0
+#     commercial_use: true
+#     attribution_required: false
+#     contains_personal_data: false
+#     notes: "Prepared 2026-08-16, see data/run-01/manifest.json"
+datasets: []
+
+notes: >
+  Fill in docs/FINETUNING.md before using this configuration for a real run.
+  A run without a written goal, prepared data and a baseline measurement
+  produces a result nobody can judge.

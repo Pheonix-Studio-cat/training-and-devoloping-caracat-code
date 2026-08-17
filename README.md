@@ -52,8 +52,10 @@ with its license and verification status in
 
 ### 4. Project-specific code
 
-Everything under `src/`, `scripts/`, `tests/` and `configs/` is original work of
-this project, licensed under Apache-2.0 ([`LICENSE`](LICENSE)).
+Everything under `src/`, `scripts/`, `tests/`, `configs/`, `docs/` and
+`interface/` is original work of this project, licensed under Apache-2.0
+([`LICENSE`](LICENSE)). It is written against the standard library and plain
+browser APIs, so it adds no dependencies and ships no third-party code.
 
 ---
 
@@ -67,12 +69,16 @@ NOTICE                    attribution, incl. the Qwen3-Coder-Next base model
 MODEL_CARD.md             model documentation
 THIRD_PARTY_LICENSES.md   third-party components and their licenses
 SECURITY.md               vulnerability reporting and secret-handling policy
-hf/                       exactly what is published to Hugging Face
+docs/FINETUNING.md        worksheet to complete before a training run
+hf/                       exactly what is published to the HF model repo
+space/                    the hosted interface (HF Space, Docker)
+interface/                the local interface page
+prompts/                  the personality, as an editable file
 src/caracat_code/         project library
-scripts/                  train.py, evaluate.py entry points
-configs/                  example training configurations
+scripts/                  train.py, evaluate.py, prepare_dataset.py, serve_interface.py
+configs/                  example training configurations and dataset
 tests/                    pytest suite
-.github/workflows/        ci.yml, sync-to-huggingface.yml
+.github/workflows/        ci.yml, sync-to-huggingface.yml, sync-to-space.yml
 ```
 
 ---
@@ -103,6 +109,130 @@ Every dataset in a configuration must declare `name`, `source`, `license`,
 `unknown` fails validation and training cannot start with it. This is
 deliberate, and it is not to be worked around.
 
+### Preparing a fine-tune
+
+Work through [`docs/FINETUNING.md`](docs/FINETUNING.md) first. It is a worksheet,
+not a tutorial: goal, method, data, hardware, cost, measurement and stop
+conditions, each with a blank that has to be filled in before GPU time is paid
+for.
+
+Turn raw examples into a checked training set:
+
+```bash
+python scripts/prepare_dataset.py \
+    --input my_examples.jsonl \
+    --output-dir data/run-01 \
+    --name my-examples \
+    --source "hand-written, own work" \
+    --license Apache-2.0 \
+    --commercial-use yes \
+    --attribution-required no
+```
+
+Accepts `{"instruction", "input", "output"}` or `{"messages": [...]}` per line —
+see [`configs/example_dataset.jsonl`](configs/example_dataset.jsonl). It checks
+the structure, removes exact duplicates, splits off a validation set with a fixed
+seed, and writes a manifest recording the counts, the license and a hash of the
+input, so it stays clear later what a run was trained on.
+
+**It refuses to write anything if the data contains something that looks like a
+credential.** A key that reaches the training data ends up in the weights, and it
+cannot be deleted from them — rotating it is the only remedy, and you have to
+notice first. The report names the line and the field, never the value. Obvious
+placeholders such as `your-api-key-here` do not trip it.
+
+The license questions have no defaults, on purpose. An unanswered licensing
+question is not the same as "no".
+
+Then validate a training configuration:
+
+```bash
+python scripts/train.py --config configs/lora_finetuning.yaml --validate-only
+```
+
+The `method:` block describes how the model is adapted — `lora`, `qlora` or
+`full`. Adapter settings are rejected for `full`, and `full` produces a warning:
+updating every weight of a model this size needs datacenter hardware, not a
+single machine.
+
+Training itself is still not implemented. That step needs training libraries,
+and each one has to be recorded in
+[`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) with its license read from
+the primary source first.
+
+### Using Caracat Code
+
+`scripts/serve_interface.py` starts the interface on your own machine.
+
+```bash
+export CARACAT_API_KEY='your-provider-key'
+python scripts/serve_interface.py --project-dir ~/my-project
+```
+
+Then open <http://127.0.0.1:8765>.
+
+What it can do beyond chatting:
+
+| Feature | How |
+|---|---|
+| **Read your project** | `--project-dir <path>`; click a file in the sidebar to attach it |
+| **Run Python** | a `Run` button on every Python block the model returns |
+| **Keep conversations** | saved automatically, listed in the sidebar |
+| **Compare two models** | the `compare` toggle answers the same question twice, side by side |
+| **Fetch web pages** | URLs in your message are fetched and attached automatically |
+
+The personality lives in [`prompts/caracat_persona.md`](prompts/caracat_persona.md) —
+an ordinary text file. Edit a line, reload the page, and the behaviour changes.
+Its first rule is the one that matters most: **ask instead of guessing**.
+
+#### The limits, plainly
+
+- **Running code is not a container.** Time, memory, output size and open files
+  are capped, children are killed with the parent, and the run happens in a
+  throwaway directory with an environment built from nothing — your API key is
+  provably invisible to it. But the code runs as your user: it can reach the
+  network and read what you can read. Don't run code you don't understand. The
+  route only exists when the server is bound to a local address.
+- **Your files are copied, never opened in place.** A wrong script destroys a
+  copy. Files it created or changed are listed afterwards.
+- **A file holding something credential-shaped is not sent.** Not to the
+  provider, not into a run. The message names the line, never the value.
+- **Fetching is automatic and internal addresses are blocked** — loopback,
+  private ranges, and the cloud metadata address. Every redirect hop is
+  re-checked. No credentials are ever attached to a fetch.
+- **Conversations are stored outside the repository**, so they cannot be
+  committed by accident.
+
+**What it talks to.** No Caracat weights have been trained yet, so there is
+nothing of our own to connect to. The interface speaks the OpenAI-compatible
+chat-completions protocol, which means it works with any provider that serves
+the base model — or with a local runtime:
+
+```bash
+# a hosted provider (default is https://openrouter.ai/api/v1)
+python scripts/serve_interface.py --api-base https://your-provider/v1
+
+# a local runtime, e.g. Ollama or llama.cpp
+python scripts/serve_interface.py --api-base http://localhost:11434/v1
+```
+
+The model list is fetched from whichever provider you point it at, so you pick
+a real identifier from a dropdown instead of guessing one.
+
+**Where the key lives.** In the environment, read once by the server process.
+It is never sent to the browser, never written to a log, and there is
+deliberately no `--api-key` flag, because a key passed on the command line ends
+up in your shell history and in the process list. Anything a provider echoes
+back in an error is redacted before it is shown.
+
+**What the server will and will not do.** It binds to `127.0.0.1` only and
+warns loudly if you change that. It forwards exactly two upstream paths —
+`chat/completions` and `models` — so it cannot be turned into an open proxy. It
+validates every field of a chat request rather than passing it through, rejects
+requests carrying a foreign `Host` header, and refuses plain `http` to anything
+but a local endpoint. Model output is inserted into the page as text, never as
+HTML.
+
 ### Recording an evaluation run
 
 `scripts/evaluate.py` writes a JSON report capturing everything needed to
@@ -114,6 +244,31 @@ python scripts/evaluate.py --dry-run --output-dir eval_runs
 ```
 
 Fields that cannot be determined are recorded as `null` rather than guessed.
+
+### Running it without a computer
+
+The interface needs a server. If you work from a tablet or a phone, that server
+has to live somewhere else — a Hugging Face Space is the shortest path, and
+`space/` holds everything it needs.
+
+1. Create a Space on Hugging Face with the **Docker** SDK. Make it **private**
+   unless you mean to share it: anyone who can open a public Space can send
+   requests through it, billed to your provider account.
+2. Add `CARACAT_API_KEY` under *Settings → Variables and secrets*, as a
+   **secret** rather than a variable.
+3. Add the Space's id (for example `Chinook416/caracat-code`) as the repository
+   variable `HF_SPACE_REPO_ID` in this GitHub repository.
+4. Push to `main`. `.github/workflows/sync-to-space.yml` assembles the page, the
+   personality and the library into an upload directory and publishes it.
+
+Nothing is duplicated in git — the workflow copies `src/`, `interface/` and
+`prompts/` at build time, so the personality has exactly one source.
+
+**What a Space cannot do:** read your project files or run code. Those need a
+machine with your files on it. Running code is not merely switched off there —
+the route only exists when the server is bound to a local address, and a
+container never is. Without that rule, anyone who found the address could
+execute programs on your Space.
 
 ---
 

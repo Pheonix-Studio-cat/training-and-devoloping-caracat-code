@@ -21,15 +21,22 @@ from caracat_code.datasets import (
 )
 
 __all__ = [
+    "LORA_METHODS",
+    "TRAINING_METHODS",
     "ConfigError",
     "ModelConfig",
     "TrainingConfig",
     "TrainingHyperparameters",
+    "TrainingMethod",
     "load_training_config",
     "parse_training_config",
 ]
 
 DEFAULT_BASE_MODEL = "Qwen/Qwen3-Coder-Next"
+
+TRAINING_METHODS = ("lora", "qlora", "full")
+LORA_METHODS = ("lora", "qlora")
+MAX_LORA_RANK = 512
 
 
 class ConfigError(ValueError):
@@ -60,6 +67,37 @@ class TrainingHyperparameters:
 
 
 @dataclass(frozen=True)
+class TrainingMethod:
+    """How the model is adapted: a small adapter, or every weight.
+
+    The defaults describe LoRA with conventional starting values. They are a
+    starting point, not a recommendation derived from measurement -- the run that
+    tells you what the right rank is for your data is the one you have not made
+    yet.
+    """
+
+    kind: str = "lora"
+    rank: int | None = 16
+    alpha: int | None = 32
+    dropout: float = 0.0
+    target_modules: tuple[str, ...] = ()
+
+    @property
+    def is_parameter_efficient(self) -> bool:
+        """Whether the base weights stay untouched and the artifact is an adapter."""
+        return self.kind in LORA_METHODS
+
+    def describe(self) -> str:
+        if not self.is_parameter_efficient:
+            return self.kind
+        modules = ", ".join(self.target_modules) if self.target_modules else "(default)"
+        return (
+            f"{self.kind} (rank {self.rank}, alpha {self.alpha}, "
+            f"dropout {self.dropout}, modules {modules})"
+        )
+
+
+@dataclass(frozen=True)
 class TrainingConfig:
     """A complete, validated training configuration."""
 
@@ -67,6 +105,7 @@ class TrainingConfig:
     output_dir: str
     model: ModelConfig
     hyperparameters: TrainingHyperparameters
+    method: TrainingMethod = field(default_factory=TrainingMethod)
     datasets: tuple[DatasetSpec, ...] = ()
     seed: int = 42
     commercial_use_intended: bool = False
@@ -86,6 +125,7 @@ class TrainingConfig:
                 f"base model      : {self.model.base_model}",
                 f"revision        : {self.model.revision or '(default)'}",
                 f"quantization    : {self.model.quantization or 'none'}",
+                f"method          : {self.method.describe()}",
                 f"output dir      : {self.output_dir}",
                 f"seed            : {self.seed}",
                 f"commercial use  : {self.commercial_use_intended}",
@@ -159,6 +199,63 @@ def _parse_model(raw: object) -> ModelConfig:
         trust_remote_code=_as_bool(
             mapping.get("trust_remote_code"), "model.trust_remote_code", default=False
         ),
+    )
+
+
+def _parse_method(raw: object) -> TrainingMethod:
+    if raw is None:
+        return TrainingMethod()
+
+    mapping = _require_mapping(raw, "'method'")
+    kind = _as_str(mapping.get("kind", "lora"), "method.kind").lower()
+    if kind not in TRAINING_METHODS:
+        raise ConfigError(
+            f"method.kind must be one of {', '.join(TRAINING_METHODS)}, got {kind!r}"
+        )
+
+    adapter_keys = ("rank", "alpha", "dropout", "target_modules")
+    if kind not in LORA_METHODS:
+        present = [key for key in adapter_keys if mapping.get(key) is not None]
+        if present:
+            raise ConfigError(
+                f"method.kind is {kind!r}, so {', '.join(present)} do not apply. "
+                "Adapter settings belong to lora or qlora."
+            )
+        return TrainingMethod(
+            kind=kind, rank=None, alpha=None, dropout=0.0, target_modules=()
+        )
+
+    for key in ("rank", "alpha"):
+        if mapping.get(key) is None:
+            raise ConfigError(
+                f"method.{key} is required for {kind!r}. Pick a value deliberately "
+                "and record it, so the run can be repeated and compared."
+            )
+
+    rank = _as_int(mapping["rank"], "method.rank", minimum=1)
+    if rank > MAX_LORA_RANK:
+        raise ConfigError(f"method.rank must be <= {MAX_LORA_RANK}, got {rank}")
+
+    dropout = _as_float(mapping.get("dropout", 0.0), "method.dropout", minimum=0.0)
+    if dropout >= 1.0:
+        raise ConfigError(f"method.dropout must be below 1.0, got {dropout}")
+
+    raw_modules = mapping.get("target_modules") or []
+    if not isinstance(raw_modules, list):
+        raise ConfigError(
+            f"method.target_modules must be a list, got {type(raw_modules).__name__}"
+        )
+    modules = tuple(
+        _as_str(module, f"method.target_modules[{index}]")
+        for index, module in enumerate(raw_modules)
+    )
+
+    return TrainingMethod(
+        kind=kind,
+        rank=rank,
+        alpha=_as_int(mapping["alpha"], "method.alpha", minimum=1),
+        dropout=dropout,
+        target_modules=modules,
     )
 
 
@@ -246,6 +343,7 @@ def parse_training_config(
         hyperparameters=_parse_hyperparameters(
             _require(mapping, "hyperparameters", "the training configuration")
         ),
+        method=_parse_method(mapping.get("method")),
         datasets=datasets,
         seed=_as_int(mapping.get("seed", 42), "'seed'"),
         commercial_use_intended=commercial_use_intended,

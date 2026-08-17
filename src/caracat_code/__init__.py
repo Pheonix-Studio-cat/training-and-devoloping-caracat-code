@@ -25,6 +25,14 @@ from caracat_code.evaluation import (
     collect_environment,
     write_report,
 )
+from caracat_code.interface import (
+    ChatRequestError,
+    InterfaceConfig,
+    InterfaceConfigError,
+    build_chat_payload,
+    resolve_config,
+)
+from caracat_code.persona import PersonaError, load_persona
 
 __version__ = "0.1.0"
 
@@ -33,20 +41,27 @@ BASE_MODEL = "Qwen/Qwen3-Coder-Next"
 
 __all__ = [
     "BASE_MODEL",
+    "ChatRequestError",
     "ConfigError",
     "DatasetLicenseError",
     "DatasetSpec",
     "EnvironmentInfo",
     "EvaluationRun",
     "GenerationSettings",
+    "InterfaceConfig",
+    "InterfaceConfigError",
     "ModelConfig",
+    "PersonaError",
     "TrainingConfig",
     "TrainingHyperparameters",
     "__version__",
+    "build_chat_payload",
     "check_dataset_licenses",
     "collect_environment",
+    "load_persona",
     "load_training_config",
     "parse_dataset_spec",
     "parse_training_config",
+    "resolve_config",
     "write_report",
 ]

@@ -1,0 +1,98 @@
+name: Sync Caracat Code to a Hugging Face Space
+
+# Publishes the hosted interface to a Hugging Face Space.
+#
+# The Space needs the page, the personality and the library, which live in
+# interface/, prompts/ and src/. Rather than keeping a second copy of them under
+# space/, this workflow assembles the upload directory at build time. One source
+# for the personality, one source for the page, no drift.
+#
+# The target Space is configured as a repository variable rather than written
+# into this file, so it can be changed without a commit:
+#   Settings > Secrets and variables > Actions > Variables > HF_SPACE_REPO_ID
+#   for example: Chinook416/caracat-code
+#
+# Nothing runs without HF_TOKEN, and nothing is uploaded outside the assembled
+# directory.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "space/**"
+      - "src/**"
+      - "interface/**"
+      - "prompts/**"
+      - ".github/workflows/sync-to-space.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: huggingface-space-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    # Forks have no secrets and must not publish to the Space.
+    if: github.repository == 'Pheonix-Studio-cat/training-and-devoloping-caracat-code'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Verify the secret and the target are configured
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACE_REPO_ID: ${{ vars.HF_SPACE_REPO_ID }}
+        run: |
+          if [ -z "${HF_TOKEN}" ]; then
+            echo "::error::The HF_TOKEN repository secret is not set. Add a Hugging Face access token with write permission for the Space under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          if [ -z "${SPACE_REPO_ID}" ]; then
+            echo "::error::The HF_SPACE_REPO_ID repository variable is not set. Create the Space on Hugging Face first, then add its id (for example Chinook416/caracat-code) under Settings > Secrets and variables > Actions > Variables."
+            exit 1
+          fi
+          echo "Secret and target are configured."
+
+      - name: Check out the repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Assemble what the Space needs
+        run: |
+          set -euo pipefail
+          mkdir -p space-build
+          cp space/README.md space/Dockerfile space/app.py space-build/
+          cp -r src interface prompts space-build/
+          # Caches and compiled files must not travel into the image.
+          find space-build -name '__pycache__' -type d -prune -exec rm -rf {} +
+          find space-build -name '*.py[co]' -delete
+          find space-build -name '*.egg-info' -type d -prune -exec rm -rf {} +
+
+      - name: Show what will be published
+        run: |
+          echo "The following files will be uploaded to ${{ vars.HF_SPACE_REPO_ID }}:"
+          find space-build -type f | sort
+
+      - name: Refuse to publish anything credential-shaped
+        run: |
+          set -euo pipefail
+          # A last line of defence: the Space is public-facing, and a key that
+          # reaches it cannot be recalled. Patterns only, never the value.
+          if grep -rIlE '(^|[^A-Za-z0-9])(sk-[A-Za-z0-9_-]{20,}|hf_[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,})' space-build; then
+            echo "::error::A file in the upload looks like it holds a credential. Nothing was published."
+            exit 1
+          fi
+          echo "No credential-shaped content found."
+
+      - name: Sync to the Space
+        uses: huggingface/hub-sync@6fbce0a787a7146710e588abe7a4fd5eca07f47c # v0.1.0
+        with:
+          github_repo_id: ${{ github.repository }}
+          huggingface_repo_id: ${{ vars.HF_SPACE_REPO_ID }}
+          hf_token: ${{ secrets.HF_TOKEN }}
+          repo_type: space
+          space_sdk: docker
+          subdirectory: space-build
