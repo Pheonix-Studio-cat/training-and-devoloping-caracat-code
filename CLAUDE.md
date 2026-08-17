@@ -142,6 +142,12 @@ third-party material.
 Keep the Hugging Face model card (`hf/README.md`) accurate and consistent with
 `MODEL_CARD.md`.
 
+A second workflow, `.github/workflows/sync-to-space.yml`, publishes the hosted
+interface to a Space. It assembles `space/` together with `src/`, `interface/`
+and `prompts/` at build time rather than keeping a second copy of them, so the
+personality and the page have one source. The target Space is the repository
+variable `HF_SPACE_REPO_ID`, not a value written into the workflow.
+
 ---
 
 ## 8. Git workflow
@@ -190,7 +196,8 @@ MODEL_CARD.md             model documentation (GitHub copy)
 THIRD_PARTY_LICENSES.md   every third-party component and its license
 SECURITY.md               vulnerability reporting
 docs/FINETUNING.md        worksheet to complete before a training run
-hf/                       exactly what is published to Hugging Face
+hf/                       exactly what is published to the HF model repo
+space/                    the hosted interface (HF Space, Docker)
 interface/                the local interface page
 prompts/                  the personality, as an editable file
 src/caracat_code/         project library (config, dataset gate, data prep, eval
@@ -199,7 +206,7 @@ src/caracat_code/         project library (config, dataset gate, data prep, eval
 scripts/                  train.py, evaluate.py, prepare_dataset.py, serve_interface.py
 configs/                  example training configurations
 tests/                    pytest suite
-.github/workflows/        ci.yml, sync-to-huggingface.yml
+.github/workflows/        ci.yml, sync-to-huggingface.yml, sync-to-space.yml
 ```
 
 ## Development commands

@@ -64,6 +64,17 @@ responses are capped and must be text. The residual risk is stated in the
 interface: model output is not trusted input, so every fetch is visible in the
 conversation.
 
+### The Host header rule
+
+A local server refuses requests whose `Host` header is not a local name. That
+stops a hostile page from pointing a hostname it controls at `127.0.0.1` and
+driving a server meant for the person at the keyboard.
+
+The rule applies **only** to a locally bound server. A server bound to a public
+address — a Space, a container — is reached by its public name by design, and
+refusing that name would reject every legitimate request while protecting
+nothing. Both behaviours are covered by tests.
+
 ## Workflow permissions
 
 Every workflow job declares the minimum `permissions:` it needs. Third-party

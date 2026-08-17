@@ -103,6 +103,18 @@ def make_handler(options: ServerOptions) -> type[BaseHTTPRequestHandler]:
             sys.stderr.write(f"{self.command} {self.path.split('?')[0]} {args[1]}\n")
 
         def _host_is_trusted(self) -> bool:
+            """Whether this request's Host header may be served.
+
+            The check exists to stop a hostile page pointing a hostname it
+            controls at 127.0.0.1 and driving a server meant only for the
+            person at the keyboard. That threat needs a *local* server, so the
+            rule applies only to one: a server deliberately bound to a public
+            address is reached by its public name, and rejecting that name
+            would refuse every legitimate request instead of protecting
+            anything.
+            """
+            if not options.config.is_local_only:
+                return True
             hostname = self.headers.get("Host", "").rsplit(":", 1)[0].strip().lower()
             return hostname in LOCAL_HOSTS or hostname == options.config.host.lower()
 

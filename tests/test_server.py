@@ -417,3 +417,39 @@ def _post_routes(options: ServerOptions) -> set[str]:
     handler = make_handler(options)
     instance = handler.__new__(handler)  # no socket, no request
     return set(instance._routes("POST"))
+
+
+# ---- serving from a public address --------------------------------------
+
+
+def test_a_public_server_accepts_its_public_host_name(provider: str) -> None:
+    """Bound outward, the Host header is the deployment's own name.
+
+    Keeping the localhost rule here would 403 every real request. The rule
+    protects a local server from DNS rebinding; a public one is reached by its
+    public name by design.
+    """
+    config = resolve_config(
+        env={"CARACAT_API_KEY": PROVIDER_KEY},
+        api_base=provider,
+        host="0.0.0.0",  # what a container binds to
+        port=free_port(),
+    )
+    server = create_server(ServerOptions(config=config, index_html=INDEX))
+    serve(server)
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+
+    try:
+        with get(f"{base}/api/config", Host="caracat-code.hf.space") as response:
+            assert response.status == 200
+            assert json.loads(response.read())["can_run_code"] is False
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_local_server_still_rejects_a_foreign_host(interface: str) -> None:
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        get(f"{interface}/api/config", Host="evil.example")
+
+    assert caught.value.code == 403
