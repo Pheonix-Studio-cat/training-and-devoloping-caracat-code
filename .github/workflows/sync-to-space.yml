@@ -47,19 +47,33 @@ jobs:
 
     steps:
       - name: Verify the secret and the target are configured
+        id: target
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           SPACE_REPO_ID: ${{ vars.HF_SPACE_REPO_ID }}
         run: |
+          set -euo pipefail
           if [ -z "${HF_TOKEN}" ]; then
             echo "::error::The HF_TOKEN repository secret is not set. Add a Hugging Face access token with write permission for the Space under Settings > Secrets and variables > Actions."
             exit 1
           fi
-          if [ -z "${SPACE_REPO_ID}" ]; then
+          # A value typed into the web form can pick up a trailing newline, and
+          # the Hub then rejects the id with the newline attached -- a failure
+          # whose cause is invisible in the form that caused it. A repository id
+          # never contains whitespace, so removing all of it is safe and spares
+          # everyone the puzzle.
+          repo_id="$(printf '%s' "${SPACE_REPO_ID}" | tr -d '[:space:]')"
+          if [ -z "${repo_id}" ]; then
             echo "::error::The HF_SPACE_REPO_ID repository variable is not set. Create the Space on Hugging Face first, then add its id (for example Chinook416/caracat-code) under Settings > Secrets and variables > Actions > Variables."
             exit 1
           fi
-          echo "Secret and target are configured."
+          case "${repo_id}" in
+            */*/*|/*|*/) echo "::error::HF_SPACE_REPO_ID should look like owner/space-name, but it is '${repo_id}'."; exit 1 ;;
+            */*) : ;;
+            *) echo "::error::HF_SPACE_REPO_ID should look like owner/space-name, but it is '${repo_id}'."; exit 1 ;;
+          esac
+          echo "repo_id=${repo_id}" >> "$GITHUB_OUTPUT"
+          echo "Secret and target are configured: ${repo_id}"
 
       - name: Check out the repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -77,7 +91,7 @@ jobs:
 
       - name: Show what will be published
         run: |
-          echo "The following files will be uploaded to ${{ vars.HF_SPACE_REPO_ID }}:"
+          echo "The following files will be uploaded to ${{ steps.target.outputs.repo_id }}:"
           find space-build -type f | sort
 
       - name: Refuse to publish anything executable
@@ -106,7 +120,7 @@ jobs:
         uses: huggingface/hub-sync@6fbce0a787a7146710e588abe7a4fd5eca07f47c # v0.1.0
         with:
           github_repo_id: ${{ github.repository }}
-          huggingface_repo_id: ${{ vars.HF_SPACE_REPO_ID }}
+          huggingface_repo_id: ${{ steps.target.outputs.repo_id }}
           hf_token: ${{ secrets.HF_TOKEN }}
           repo_type: space
           space_sdk: static
