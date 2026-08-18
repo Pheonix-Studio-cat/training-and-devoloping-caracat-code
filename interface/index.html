@@ -247,6 +247,7 @@
   let allModels = [];
   let defaultSystemPrompt = "";
   let attached = [];        // {path, text}
+  let modelLoadError = "";  // why the list is empty, if it is
   let conversationId = null;
 
   // ---- small helpers -------------------------------------------------
@@ -821,7 +822,12 @@
     const text = $("prompt").value.trim();
     if (!text || controllers.length) return;
     const model = $("model").value;
-    if (!model) { showError("thread", "Select a model first."); return; }
+    if (!model) {
+      showError("thread", modelLoadError
+        ? "No model to send to, because the list could not be loaded: " + modelLoadError
+        : "Select a model first.");
+      return;
+    }
     const comparing = $("compare").checked;
     const modelB = $("model-b").value;
 
@@ -890,16 +896,35 @@
 
   // ---- models --------------------------------------------------------
 
+  // Every word has to appear, in any order and anywhere in the identifier.
+  // Typing what you are looking for -- "qwen coder next" -- has to find
+  // Qwen/Qwen3-Coder-Next, which a plain substring match never would, because
+  // the identifier separates those words with slashes and dashes rather than
+  // spaces. Matching the whole string literally made the honest search return
+  // nothing and look like a broken page.
+  function matchesFilter(id, terms) {
+    const haystack = id.toLowerCase();
+    return terms.every((term) => haystack.includes(term));
+  }
+
   function fillModels() {
-    const filter = $("modelfilter").value.trim().toLowerCase();
-    const shown = filter ? allModels.filter((id) => id.toLowerCase().includes(filter)) : allModels;
+    const terms = $("modelfilter").value.toLowerCase().split(/[\s,]+/).filter(Boolean);
+    const shown = terms.length ? allModels.filter((id) => matchesFilter(id, terms)) : allModels;
     [["model", "model"], ["model-b", "modelB"]].forEach(([id, key]) => {
       const select = $(id);
       const wanted = store.get(key, "");
       select.textContent = "";
       if (!shown.length) {
-        const option = el("option", null, allModels.length ? "no match for filter" : "no models available");
+        // An empty list has two very different causes, and saying which one
+        // saves the person from hunting in the wrong place. The reason is kept
+        // here rather than only in the thread, because "New chat" clears the
+        // thread and the dropdown is where they are looking.
+        const label = allModels.length
+          ? "no match for filter"
+          : (modelLoadError ? "could not load models \u2014 check the key" : "no models available");
+        const option = el("option", null, label);
         option.value = "";
+        if (modelLoadError) option.title = modelLoadError;
         select.append(option);
         return;
       }
@@ -917,8 +942,10 @@
       const data = await backend.models();
       allModels = (data.data || data.models || [])
         .map((m) => (typeof m === "string" ? m : m.id)).filter(Boolean).sort();
+      modelLoadError = "";
     } catch (err) {
       allModels = [];
+      modelLoadError = err.message;
       showError("thread", "Could not load the model list: " + err.message);
     }
     if (config.default_model && !allModels.includes(config.default_model)) {
