@@ -7,7 +7,7 @@ sdk: static
 app_file: index.html
 pinned: false
 license: apache-2.0
-short_description: A coding assistant based on Qwen3-Coder-Next, with a personality you can edit.
+short_description: A coding assistant based on Qwen3-Coder-Next.
 ---
 
 # 🐈‍⬛ Caracat Code
