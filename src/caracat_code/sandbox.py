@@ -63,6 +63,19 @@ unlikely, and leaves ordinary names free for your own files.
 
 MAX_CODE_CHARS = 200_000
 
+LIMIT_SIGNALS: dict[int, str] = {
+    int(signal.SIGKILL): "it was killed outright, which is what the memory and "
+    "CPU ceilings do when they are reached",
+    int(signal.SIGXCPU): "it used up its CPU-time allowance",
+    int(signal.SIGXFSZ): "it wrote more than the file-size allowance, which also "
+    "caps how much it can print",
+}
+"""Signals that mean "a limit stopped this", not "the program crashed".
+
+Without this distinction a program stopped by the sandbox is reported as exit
+code -9, which reads like a crash and tells the person nothing.
+"""
+
 
 class SandboxError(ValueError):
     """Raised when a run cannot be started at all."""
@@ -104,6 +117,18 @@ class RunResult:
     @property
     def succeeded(self) -> bool:
         return self.exit_code == 0 and not self.timed_out
+
+    @property
+    def stopped_by_limit(self) -> bool:
+        """Whether the sandbox stopped this run, rather than the program ending.
+
+        True for the wall-clock timeout and for a kill by one of the resource
+        ceilings. Which of the two fires first is a race when a program burns
+        CPU as fast as it can, so both have to count.
+        """
+        if self.timed_out:
+            return True
+        return self.exit_code is not None and -self.exit_code in LIMIT_SIGNALS
 
 
 RUNNER_SOURCE = """\
@@ -212,7 +237,7 @@ def run_python(
             RUNNER_SOURCE.format(
                 program=f"{RESERVED_PREFIX}main.py",
                 memory_bytes=limits.memory_mb * 1024 * 1024,
-                cpu_seconds=max(1, int(limits.timeout_seconds)),
+                cpu_seconds=max(2, int(limits.timeout_seconds) + 1),
                 file_bytes=limits.max_file_mb * 1024 * 1024,
                 open_files=limits.max_open_files,
             ),

@@ -1,11 +1,16 @@
 name: Sync Caracat Code to a Hugging Face Space
 
-# Publishes the hosted interface to a Hugging Face Space.
+# Publishes the hosted interface to a Hugging Face **static** Space.
 #
-# The Space needs the page, the personality and the library, which live in
-# interface/, prompts/ and src/. Rather than keeping a second copy of them under
-# space/, this workflow assembles the upload directory at build time. One source
-# for the personality, one source for the page, no drift.
+# A static Space serves files and runs nothing. That is the whole design: three
+# files go up -- the page, the personality it reads, and the Space's own README
+# with its front matter. No Python is published, because there would be nothing
+# to run it.
+#
+# The page detects at startup that no server answered and talks to the provider
+# directly, with the key held in the visitor's browser. src/ is deliberately
+# *not* uploaded: on a static host it would be dead weight that merely looks
+# like it does something.
 #
 # The target Space is configured as a repository variable rather than written
 # into this file, so it can be changed without a commit:
@@ -20,7 +25,6 @@ on:
     branches: [main]
     paths:
       - "space/**"
-      - "src/**"
       - "interface/**"
       - "prompts/**"
       - ".github/workflows/sync-to-space.yml"
@@ -64,17 +68,28 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p space-build
-          cp space/README.md space/Dockerfile space/app.py space-build/
-          cp -r src interface prompts space-build/
-          # Caches and compiled files must not travel into the image.
-          find space-build -name '__pycache__' -type d -prune -exec rm -rf {} +
-          find space-build -name '*.py[co]' -delete
-          find space-build -name '*.egg-info' -type d -prune -exec rm -rf {} +
+          # Named one by one rather than copied wholesale: this directory
+          # becomes a public web page, so what lands in it is a decision, not a
+          # side effect of a glob.
+          cp space/README.md space-build/README.md
+          cp interface/index.html space-build/index.html
+          cp prompts/caracat_persona.md space-build/caracat_persona.md
 
       - name: Show what will be published
         run: |
           echo "The following files will be uploaded to ${{ vars.HF_SPACE_REPO_ID }}:"
           find space-build -type f | sort
+
+      - name: Refuse to publish anything executable
+        run: |
+          set -euo pipefail
+          # A static Space runs nothing. A file that looks like it expects to be
+          # run means this workflow and the Space have drifted apart.
+          if find space-build -type f ! -name '*.html' ! -name '*.md' | grep .; then
+            echo "::error::Only .html and .md belong in a static Space. Nothing was published."
+            exit 1
+          fi
+          echo "Only static files present."
 
       - name: Refuse to publish anything credential-shaped
         run: |
@@ -94,5 +109,5 @@ jobs:
           huggingface_repo_id: ${{ vars.HF_SPACE_REPO_ID }}
           hf_token: ${{ secrets.HF_TOKEN }}
           repo_type: space
-          space_sdk: docker
+          space_sdk: static
           subdirectory: space-build

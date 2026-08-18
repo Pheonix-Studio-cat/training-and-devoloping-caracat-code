@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
+<!-- Nothing here is loaded from anywhere else, so the page says so rather than
+     merely being written that way. This blocks a CDN script, a web font and a
+     tracking pixel alike -- including one a later edit adds by accident.
+     connect-src covers what the two modes actually need: the page's own server
+     when there is one, an https provider when there is not, and a local runtime
+     such as Ollama. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; form-action 'none'; base-uri 'none'">
 <!-- An empty data URI stops the browser asking for /favicon.ico. No external
      request, no 404 in the console, no icon file to ship. -->
 <link rel="icon" href="data:,">
@@ -119,6 +126,11 @@
   .notice.warn { border-left-color: var(--warn); }
   .blink::after { content: "▌"; color: var(--accent); animation: blink 1s steps(2, start) infinite; }
   @keyframes blink { to { visibility: hidden; } }
+
+  /* Which mode the page is in is decided at startup, not at build time. */
+  .static-only, body.static .server-only { display: none; }
+  body.static .field.static-only { display: flex; }
+  body.static .static-only.block { display: block; }
 </style>
 </head>
 <body>
@@ -153,6 +165,15 @@
     <label for="modelfilter">Filter models</label>
     <input id="modelfilter" type="text" placeholder="qwen" spellcheck="false">
   </div>
+  <div class="field static-only grow">
+    <label for="apibase">Endpoint &middot; the provider this page talks to</label>
+    <input id="apibase" type="url" spellcheck="false" placeholder="https://router.huggingface.co/v1">
+  </div>
+  <div class="field static-only grow">
+    <label for="apikey">API key &middot; kept in this browser, sent only to the endpoint above</label>
+    <input id="apikey" type="password" spellcheck="false" autocomplete="off" placeholder="paste your provider key">
+    <button id="forget-key" class="small">Forget the key on this device</button>
+  </div>
 </div>
 
 <div class="layout">
@@ -173,7 +194,7 @@
           <div class="notice" id="intro">
             Talking to the base model <strong>Qwen3-Coder-Next</strong> through your own
             provider. No Caracat weights have been trained yet, so there is nothing else
-            to connect to. Your API key stays in the local server and never reaches this page.
+            to connect to. <span id="intro-key"></span>
           </div>
         </div>
       </div>
@@ -195,6 +216,11 @@
   <div class="hint" id="hint">Enter sends · Shift+Enter for a new line</div>
 </footer>
 
+<!-- Without a server there is no project directory to browse, but the browser's
+     own picker still reaches the files on the device -- iCloud and Files
+     included on an iPad. -->
+<input id="filepicker" type="file" multiple hidden>
+
 <script>
 (function () {
   "use strict";
@@ -210,7 +236,11 @@
     set(key, value) { try { localStorage.setItem("caracat." + key, value); } catch (e) {} }
   };
 
+  const DEFAULT_API_BASE = "https://router.huggingface.co/v1";
+  const MAX_STORED_CHATS = 40;
+
   let config = {};
+  let backend = null;
   let messages = [];
   let messagesB = [];
   let controllers = [];
@@ -227,6 +257,221 @@
     const data = type.includes("json") ? await response.json().catch(() => ({})) : {};
     if (!response.ok) throw new Error(data.error || ("HTTP " + response.status));
     return data;
+  }
+
+  // ---- looking for credentials ---------------------------------------
+  //
+  // The same patterns the Python side applies before anything is sent
+  // (src/caracat_code/data_prep.py). With a server, the server does this check.
+  // Without one, it has to happen here: an attached file goes straight to the
+  // provider, and a key that reaches them cannot be recalled afterwards.
+  //
+  // The finding names the line and the kind. It never carries the value.
+
+  const SECRET_PATTERNS = [
+    ["private key block", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
+    ["OpenAI-style API key", /\bsk-[A-Za-z0-9_-]{20,}/],
+    ["Hugging Face token", /\bhf_[A-Za-z0-9]{20,}/],
+    ["GitHub token", /\bgh[pousr]_[A-Za-z0-9]{20,}/],
+    ["AWS access key id", /\bAKIA[0-9A-Z]{16}\b/],
+    ["Google API key", /\bAIza[0-9A-Za-z_-]{35}\b/],
+    ["Slack token", /\bxox[baprs]-[A-Za-z0-9-]{10,}/],
+    ["JSON web token", /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\./],
+    ["credential assignment",
+      /\b(?:api[_-]?key|secret|password|passwd|access[_-]?token|auth[_-]?token)\s*[:=]\s*["']?([A-Za-z0-9/+_.-]{16,})/i]
+  ];
+  const PLACEHOLDER_MARKERS = ["your", "example", "placeholder", "changeme",
+    "change-me", "dummy", "fake", "sample", "redacted", "xxxx", "....", "<"];
+
+  function findSecret(text) {
+    const lines = text.split("\n");
+    for (let index = 0; index < lines.length; index++) {
+      for (const [name, pattern] of SECRET_PATTERNS) {
+        const hit = lines[index].match(pattern);
+        if (!hit) continue;
+        const value = (hit[1] || hit[0]).toLowerCase();
+        if (PLACEHOLDER_MARKERS.some((marker) => value.includes(marker))) continue;
+        return { pattern: name, line: index + 1 };
+      }
+    }
+    return null;
+  }
+
+  // ---- the two backends ----------------------------------------------
+  //
+  // This page runs in two places. On your own machine it talks to its own
+  // server, which holds the API key, can read a project directory and can run
+  // code. On a static host -- a Hugging Face Static Space, GitHub Pages -- there
+  // is no server at all, so the browser talks to the provider directly and the
+  // key lives here instead.
+  //
+  // Which one applies is *discovered*, not configured: if /api/config answers,
+  // there is a server. Everything below this point is written against one
+  // interface, so the rest of the page never asks which mode it is in.
+
+  const serverBackend = {
+    mode: "server",
+    config: () => api("/api/config"),
+    models: () => api("/api/models"),
+    chat(payload, signal) {
+      return fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: signal,
+        body: JSON.stringify(payload)
+      });
+    },
+    listChats: () => api("/api/conversations").then((d) => d.conversations),
+    getChat: (id) => api("/api/conversations?id=" + encodeURIComponent(id)),
+    saveChat: (record) => api("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(record)
+    }),
+    deleteChat: (id) => api("/api/conversations/delete?id=" + encodeURIComponent(id), {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}"
+    }),
+    listFiles: () => api("/api/files").then((d) => d.entries),
+    readFile: (path) => api("/api/file?path=" + encodeURIComponent(path)),
+    run: (code, files) => api("/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: code, files: files })
+    }),
+    fetchUrl: (url) => api("/api/fetch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: url })
+    })
+  };
+
+  const staticBackend = {
+    mode: "static",
+
+    endpoint() {
+      return (store.get("apiBase", DEFAULT_API_BASE) || DEFAULT_API_BASE).replace(/\/+$/, "");
+    },
+
+    // The key is only added when there is one. An endpoint that is not the
+    // default provider may well be something that holds the key itself -- a
+    // small proxy of your own -- and forcing a key on that would be wrong.
+    async provider(path, options, signal) {
+      const base = this.endpoint();
+      const key = store.get("key", "").trim();
+      if (!/^https:\/\//i.test(base) && !/^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(base)) {
+        throw new Error("The endpoint must use https, otherwise the key would travel in the clear. Only localhost may use plain http.");
+      }
+      if (!key && base === DEFAULT_API_BASE) {
+        throw new Error("No API key yet. Open Settings and paste one — it stays in this browser and is sent only to the endpoint shown there.");
+      }
+      const headers = { "Content-Type": "application/json" };
+      if (key) headers["Authorization"] = "Bearer " + key;
+      // headers and signal go last: a caller must not be able to drop the
+      // Authorization header by passing headers of its own.
+      return fetch(base + path, Object.assign({}, options, { headers: headers, signal: signal }));
+    },
+
+    async config() {
+      let persona = "";
+      // Shipped beside index.html, so it is the same file the repository holds.
+      try { persona = await (await fetch("caracat_persona.md")).text(); }
+      catch (err) { persona = ""; }
+      return {
+        api_base: this.endpoint(),
+        default_model: "",
+        default_system_prompt: persona.trim(),
+        project_dir: null,
+        can_run_code: false,          // no server, nothing to run code on
+        can_browse_project: false,    // no server, no directory to browse
+        can_fetch: false,             // other sites refuse a browser from here
+        can_save_conversations: true  // in this browser, not on a server
+      };
+    },
+
+    async models() {
+      const response = await this.provider("/models", { method: "GET" });
+      if (!response.ok) throw new Error(await describeProviderError(response));
+      return response.json();
+    },
+
+    chat(payload, signal) {
+      return this.provider("/chat/completions", {
+        method: "POST",
+        body: JSON.stringify(Object.assign({ stream: true }, payload))
+      }, signal);
+    },
+
+    // Chats live in this browser's storage. There is no server to hold them,
+    // and on a shared host a server-side store would be shared by everyone who
+    // can open the page.
+    readAll() {
+      try { return JSON.parse(store.get("chats", "[]")) || []; } catch (e) { return []; }
+    },
+    writeAll(list) {
+      const trimmed = list.slice(0, MAX_STORED_CHATS);
+      try { store.set("chats", JSON.stringify(trimmed)); return true; }
+      catch (e) {
+        // Storage is finite. Dropping the oldest chat is better than losing the
+        // one being written.
+        try { store.set("chats", JSON.stringify(trimmed.slice(0, Math.max(1, trimmed.length - 5)))); return true; }
+        catch (e2) { return false; }
+      }
+    },
+    async listChats() {
+      return this.readAll().map((chat) => ({
+        id: chat.id, title: chat.title,
+        message_count: chat.messages.length, updated_at: chat.updated_at
+      }));
+    },
+    async getChat(id) {
+      const found = this.readAll().find((chat) => chat.id === id);
+      if (!found) throw new Error("That chat is no longer in this browser's storage.");
+      return found;
+    },
+    async saveChat(record) {
+      const list = this.readAll();
+      const id = record.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+      const existing = list.findIndex((chat) => chat.id === id);
+      const entry = {
+        id: id,
+        title: (existing >= 0 ? list[existing].title : record.title) || "Untitled",
+        model: record.model,
+        messages: record.messages,
+        updated_at: new Date().toISOString().slice(0, 16).replace("T", " ")
+      };
+      if (existing >= 0) list.splice(existing, 1);
+      list.unshift(entry);
+      if (!this.writeAll(list)) throw new Error("This browser's storage is full.");
+      return { id: id };
+    },
+    async deleteChat(id) {
+      this.writeAll(this.readAll().filter((chat) => chat.id !== id));
+      return {};
+    },
+
+    async listFiles() { return []; },
+    async readFile() { throw new Error("There is no project directory without a server."); },
+    async run() { throw new Error("Running code needs a server. Start the interface on your own machine."); },
+    async fetchUrl() { throw new Error("Fetching other sites needs a server; a browser is not allowed to."); }
+  };
+
+  // A provider error is JSON in the good case and an HTML error page in the bad
+  // one. Either way the key must not appear in what is shown.
+  async function describeProviderError(response) {
+    let detail = "";
+    try {
+      const body = await response.json();
+      detail = (body.error && (body.error.message || body.error)) || body.message || "";
+    } catch (e) { detail = ""; }
+    if (typeof detail !== "string") detail = JSON.stringify(detail);
+    const key = store.get("key", "").trim();
+    if (key && detail.includes(key)) detail = detail.split(key).join("[key redacted]");
+    if (response.status === 401 || response.status === 403) {
+      return "The provider rejected the key (HTTP " + response.status + "). " +
+        "Check it in Settings. " + detail;
+    }
+    return detail ? "The provider returned " + response.status + ": " + detail
+                  : "The provider returned HTTP " + response.status + ".";
   }
 
   function el(tag, className, text) {
@@ -314,11 +559,7 @@
     container.append(output);
 
     try {
-      const result = await api("/api/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: code, files: attached.map((f) => f.path) })
-      });
+      const result = await backend.run(code, attached.map((f) => f.path));
       output.textContent = "";
       output.classList.toggle("bad", !result.succeeded);
       const head = result.succeeded
@@ -358,11 +599,13 @@
       return;
     }
     let listed = [];
-    try { listed = (await api("/api/conversations")).conversations; }
+    try { listed = await backend.listChats(); }
     catch (err) { panel.append(el("div", "empty", err.message)); return; }
 
     if (!listed.length) {
-      panel.append(el("div", "empty", "No saved chats yet. They are saved automatically once you send something."));
+      panel.append(el("div", "empty", backend.mode === "static"
+        ? "No saved chats yet. They are saved in this browser once you send something — clearing the browser's data clears them too."
+        : "No saved chats yet. They are saved automatically once you send something."));
       return;
     }
     listed.forEach((item) => {
@@ -374,7 +617,7 @@
       remove.title = "Delete";
       remove.addEventListener("click", async (event) => {
         event.stopPropagation();
-        await api("/api/conversations/delete?id=" + encodeURIComponent(item.id), { method: "POST", body: "{}" , headers: {"Content-Type": "application/json"}});
+        await backend.deleteChat(item.id);
         if (conversationId === item.id) newChat();
         refreshChats();
       });
@@ -386,7 +629,7 @@
 
   async function openChat(id) {
     try {
-      const data = await api("/api/conversations?id=" + encodeURIComponent(id));
+      const data = await backend.getChat(id);
       newChat(true);
       conversationId = data.id;
       messages = data.messages.filter((m) => m.role !== "system");
@@ -400,12 +643,22 @@
   async function refreshFiles() {
     const panel = $("panel-files");
     panel.textContent = "";
-    if (!config.project_dir) {
-      panel.append(el("div", "empty", "No project open. Start the server with --project-dir <path>."));
+
+    if (!config.can_browse_project) {
+      // No server means no directory to walk. The browser's own picker still
+      // reaches the device's files, which is the part that matters on a tablet.
+      const pick = el("button", "small", "Choose files…");
+      pick.addEventListener("click", () => $("filepicker").click());
+      panel.append(pick);
+      panel.append(el("div", "empty",
+        "Without a server there is no project to browse. Pick files here instead — " +
+        "they are read in this browser and attached to your next message. " +
+        "A file that looks like it holds a credential is refused."));
       return;
     }
+
     let entries = [];
-    try { entries = (await api("/api/files")).entries; }
+    try { entries = await backend.listFiles(); }
     catch (err) { panel.append(el("div", "empty", err.message)); return; }
 
     entries.forEach((entry) => {
@@ -426,12 +679,43 @@
   async function attachFile(path) {
     if (attached.some((file) => file.path === path)) return;
     try {
-      const data = await api("/api/file?path=" + encodeURIComponent(path));
+      const data = await backend.readFile(path);
       attached.push({ path: data.path, text: data.text });
       renderChips();
     } catch (err) {
       showError("thread", err.message);
     }
+  }
+
+  const MAX_PICKED_BYTES = 200_000;
+
+  // Files chosen from the device. The server does the equivalent checks in
+  // workspace.py; without a server they belong here, before anything leaves.
+  async function attachPickedFiles(files) {
+    for (const file of Array.from(files)) {
+      if (attached.some((item) => item.path === file.name)) continue;
+      if (file.size > MAX_PICKED_BYTES) {
+        showNote("thread", `${file.name} is too large to attach (${Math.round(file.size / 1024)} kB).`);
+        continue;
+      }
+      let text = "";
+      try { text = await file.text(); }
+      catch (err) { showNote("thread", `could not read ${file.name}: ${err.message}`); continue; }
+
+      if (text.includes("\u0000")) {
+        showNote("thread", `${file.name} looks like a binary file, so it was not attached.`);
+        continue;
+      }
+      const finding = findSecret(text);
+      if (finding) {
+        showNote("thread",
+          `${file.name} was not attached: line ${finding.line} looks like a ${finding.pattern}. ` +
+          `Sending it to the provider could not be undone.`);
+        continue;
+      }
+      attached.push({ path: file.name, text: text });
+    }
+    renderChips();
   }
 
   function renderChips() {
@@ -453,15 +737,12 @@
   // ---- fetching ------------------------------------------------------
 
   async function fetchMentionedUrls(text) {
+    if (!config.can_fetch) return [];
     const urls = Array.from(new Set(text.match(URL_PATTERN) || [])).slice(0, 3);
     const fetched = [];
     for (const url of urls) {
       try {
-        const data = await api("/api/fetch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: url })
-        });
+        const data = await backend.fetchUrl(url);
         fetched.push(data);
         showNote("thread", `fetched ${data.final_url} (${data.text.length} characters${data.truncated ? ", cut off" : ""})`);
       } catch (err) {
@@ -485,18 +766,14 @@
     body.classList.add("blink");
     let answer = "";
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: signal,
-        body: JSON.stringify({
-          model: model,
-          messages: buildOutgoing(history),
-          temperature: Number($("temperature").value),
-          max_tokens: Number($("maxtokens").value)
-        })
-      });
+      const response = await backend.chat({
+        model: model,
+        messages: buildOutgoing(history),
+        temperature: Number($("temperature").value),
+        max_tokens: Number($("maxtokens").value)
+      }, signal);
       if (!response.ok) {
+        if (backend.mode === "static") throw new Error(await describeProviderError(response));
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || ("HTTP " + response.status));
       }
@@ -593,15 +870,11 @@
   async function saveChat(firstLine) {
     if (!config.can_save_conversations || !messages.length) return;
     try {
-      const saved = await api("/api/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: conversationId,
-          title: conversationId ? undefined : firstLine.slice(0, 80),
-          model: $("model").value,
-          messages: messages
-        })
+      const saved = await backend.saveChat({
+        id: conversationId,
+        title: conversationId ? undefined : firstLine.slice(0, 80),
+        model: $("model").value,
+        messages: messages
       });
       conversationId = saved.id;
       refreshChats();
@@ -641,7 +914,7 @@
 
   async function loadModels() {
     try {
-      const data = await api("/api/models");
+      const data = await backend.models();
       allModels = (data.data || data.models || [])
         .map((m) => (typeof m === "string" ? m : m.id)).filter(Boolean).sort();
     } catch (err) {
@@ -707,32 +980,88 @@
     store.set("system", defaultSystemPrompt);
   });
 
+  $("apibase").addEventListener("change", () => {
+    store.set("apiBase", $("apibase").value.trim() || DEFAULT_API_BASE);
+    config.api_base = $("apibase").value.trim() || DEFAULT_API_BASE;
+    $("provider").textContent = config.api_base;
+    loadModels();
+  });
+  $("apikey").addEventListener("change", () => {
+    store.set("key", $("apikey").value.trim());
+    loadModels();
+  });
+  $("forget-key").addEventListener("click", () => {
+    store.set("key", "");
+    $("apikey").value = "";
+    showNote("thread", "The key was removed from this browser. Revoke it at your provider as well if it may have been seen.");
+  });
+  $("filepicker").addEventListener("change", (event) => {
+    attachPickedFiles(event.target.files);
+    event.target.value = "";  // so choosing the same file again still fires
+  });
+
   $("system").value = store.get("system", "");
   $("temperature").value = store.get("temperature", "0.2");
   $("maxtokens").value = store.get("maxtokens", "4096");
   if (store.get("sidebar", "shown") === "hidden") $("sidebar").classList.add("hidden");
   selectTab(store.get("tab", "chats"));
 
-  api("/api/config").then((cfg) => {
-    config = cfg;
-    $("provider").textContent = cfg.api_base;
-    defaultSystemPrompt = cfg.default_system_prompt || "";
+  // ---- startup: find out which mode this is --------------------------
+
+  async function detectBackend() {
+    try {
+      const cfg = await api("/api/config");
+      // A 404 is not the only way to have no server. Some static hosts answer
+      // every unknown path with index.html and status 200, which would look
+      // like success -- so the answer has to prove it came from the server.
+      if (!cfg || typeof cfg.api_base !== "string") throw new Error("not the interface server");
+      return {
+        backend: serverBackend,
+        config: Object.assign({ can_fetch: true, can_browse_project: !!cfg.project_dir }, cfg)
+      };
+    } catch (err) {
+      // No server answered. That is the normal case on a static host, not a
+      // failure -- so the page switches modes instead of showing an error.
+      return { backend: staticBackend, config: await staticBackend.config() };
+    }
+  }
+
+  detectBackend().then(async (found) => {
+    backend = found.backend;
+    config = found.config;
+    document.body.classList.toggle("static", backend.mode === "static");
+
+    $("provider").textContent = config.api_base;
+    defaultSystemPrompt = config.default_system_prompt || "";
     // Only prefill when nothing was ever saved. An edited prompt has to survive
     // a reload -- overwriting it would throw the edit away silently.
     if (store.get("system", null) === null) $("system").value = defaultSystemPrompt;
 
+    $("intro-key").textContent = backend.mode === "static"
+      ? "There is no server here, so this page talks to your provider directly and your API key is kept in this browser. Open Settings to enter it."
+      : "Your API key stays in the local server and never reaches this page.";
+
+    if (backend.mode === "static") {
+      $("apibase").value = store.get("apiBase", DEFAULT_API_BASE);
+      $("apikey").value = store.get("key", "");
+      if (!store.get("key", "")) $("settings").classList.add("open");
+      // A provider serves hundreds of models. Starting narrowed to the family
+      // this project is built on beats scrolling to find it.
+      if (store.get("filter", null) === null) store.set("filter", "qwen");
+    }
+
     const parts = [];
-    if (cfg.project_dir) parts.push("project: " + cfg.project_dir);
-    if (cfg.can_run_code) parts.push("running Python is possible — limits apply, but this is not a container");
-    if (!cfg.can_save_conversations) parts.push("chats are not saved");
+    if (config.project_dir) parts.push("project: " + config.project_dir);
+    if (config.can_run_code) parts.push("running Python is possible — limits apply, but this is not a container");
+    if (!config.can_save_conversations) parts.push("chats are not saved");
+    if (backend.mode === "static") parts.push("no server: chats stay in this browser, code cannot be run");
     if (parts.length) $("hint").textContent = "Enter sends · Shift+Enter for a new line · " + parts.join(" · ");
 
     if (store.get("compare", "")) { $("compare").checked = true; $("compare").dispatchEvent(new Event("change")); }
-    return loadModels();
-  }).then(() => {
+    await loadModels();
     refreshChats();
     refreshFiles();
-  }).catch(() => showError("thread", "Could not reach the local server."));
+  });
 
   $("prompt").focus();
 })();

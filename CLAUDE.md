@@ -143,10 +143,22 @@ Keep the Hugging Face model card (`hf/README.md`) accurate and consistent with
 `MODEL_CARD.md`.
 
 A second workflow, `.github/workflows/sync-to-space.yml`, publishes the hosted
-interface to a Space. It assembles `space/` together with `src/`, `interface/`
-and `prompts/` at build time rather than keeping a second copy of them, so the
-personality and the page have one source. The target Space is the repository
-variable `HF_SPACE_REPO_ID`, not a value written into the workflow.
+interface to a **static** Space: three files, assembled at build time —
+`interface/index.html`, `prompts/caracat_persona.md` and `space/README.md`. No
+second copy is kept in git, so the personality and the page have one source. The
+target Space is the repository variable `HF_SPACE_REPO_ID`, not a value written
+into the workflow.
+
+Static is a constraint, not a preference: only static Spaces are free, and the
+project owner works from an iPad. A static Space runs nothing, so the workflow
+refuses to publish anything that is not `.html` or `.md`.
+
+The consequence to keep in mind when changing the page: **without a server the
+API key lives in the visitor's browser.** Do not describe the hosted interface
+as keeping the key server-side — that is true locally and false on the Space.
+Running code, reading a project directory and fetching URLs are absent there
+because nothing could perform them, and the page decides which mode it is in by
+probing `/api/config` at startup rather than by a build flag.
 
 ---
 
@@ -197,8 +209,8 @@ THIRD_PARTY_LICENSES.md   every third-party component and its license
 SECURITY.md               vulnerability reporting
 docs/FINETUNING.md        worksheet to complete before a training run
 hf/                       exactly what is published to the HF model repo
-space/                    the hosted interface (HF Space, Docker)
-interface/                the local interface page
+space/                    front matter and README for the static HF Space
+interface/                the interface page — one file, two modes
 prompts/                  the personality, as an editable file
 src/caracat_code/         project library (config, dataset gate, data prep, eval
                           recorder, interface, server, workspace, sandbox,

@@ -7,6 +7,7 @@ the checks cover the wiring rather than a mock of it.
 from __future__ import annotations
 
 import json
+import re
 import socket
 import threading
 import urllib.error
@@ -248,10 +249,63 @@ def test_the_page_wires_up_the_personality() -> None:
 
 
 def test_the_page_loads_nothing_from_outside() -> None:
+    """No CDN, no font, no stylesheet, no image from anywhere else.
+
+    The page does name a few addresses, and the distinction matters: a *load* is
+    a dependency the page cannot work without, while the provider endpoint is
+    something the person chooses and can change. So the loading mechanisms are
+    forbidden outright, and every address that remains has to be one of the
+    handful that is meant to be there.
+    """
     page = INDEX_PATH.read_text(encoding="utf-8")
 
-    for marker in ("http://", "https://", "//cdn", "<script src", "<link href"):
+    for marker in ("//cdn", "<script src", "<link href", "@import", "url(http"):
         assert marker not in page, f"the page must not reference {marker!r}"
+
+    allowed = {
+        # the default provider, editable in the page
+        "https://router.huggingface.co/v1",
+        "http://localhost:*",  # a local runtime, permitted by the page's own CSP
+        "http://127.0.0.1:*;",  # the same, as it appears in the CSP
+    }
+    found = set(re.findall(r"https?://[^\"' <>)]*", page))
+    unexpected = sorted(found - allowed)
+    assert not unexpected, f"unexpected addresses in the page: {unexpected}"
+
+
+def test_the_page_declares_a_restrictive_policy() -> None:
+    """The rule above is only a convention until the browser enforces it."""
+    page = INDEX_PATH.read_text(encoding="utf-8")
+
+    policy = re.search(r'http-equiv="Content-Security-Policy" content="([^"]+)"', page)
+    assert policy, "the page must declare a Content Security Policy"
+    directives = policy.group(1)
+
+    assert "default-src 'none'" in directives
+    # Scripts and styles are inline, so no external origin is permitted for
+    # either. Anything a future edit pulls from a CDN fails visibly.
+    assert "script-src 'unsafe-inline'" in directives
+    assert "style-src 'unsafe-inline'" in directives
+    assert "img-src data:" in directives
+
+
+def test_the_page_works_without_a_server() -> None:
+    """A static host has no server, so the page has to notice and adapt.
+
+    Without this the hosted page would sit forever on 'could not reach the local
+    server' -- and the three capabilities that need a server must not merely be
+    hidden, they have to be gone.
+    """
+    page = INDEX_PATH.read_text(encoding="utf-8")
+
+    assert "staticBackend" in page and "serverBackend" in page
+    # A static host that answers unknown paths with index.html would otherwise
+    # look like a working server.
+    assert 'typeof cfg.api_base !== "string"' in page
+    # The key is the visitor's own in that mode, so it must be sayable and
+    # removable, and it must never travel in the clear.
+    assert "forget-key" in page
+    assert "The endpoint must use https" in page
 
 
 # ---- project files -----------------------------------------------------

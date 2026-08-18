@@ -38,6 +38,58 @@ This project uses two secrets, and neither is ever stored in the repository:
   redacted out of any provider error before it is displayed. There is no
   command-line flag for it, so it does not land in your shell history.
 
+**Neither secret exists on the static Space**, which is not an oversight — see
+the next section.
+
+## Without a server: the static Space
+
+The same page runs in two places, and the difference is worth stating rather
+than discovering. On your machine it talks to its own server. Published as a
+Hugging Face **static** Space it talks to your provider directly, because a
+static Space serves files and runs nothing.
+
+**The key is then in the browser.** There is no other place for it: no process,
+no secret store, no server-side configuration. It is written to the browser's
+local storage on that device and sent only to the endpoint shown beside it in
+Settings. This is a real reduction in protection compared with the local server,
+and it is the reason the static Space is the fallback and not the default.
+
+What follows from it, and what the page does about it:
+
+- The page is served over `https`, and it **refuses a non-`https` endpoint**
+  other than `localhost`, so the key is never sent in the clear.
+- *Forget the key on this device* removes it from local storage. That is a local
+  action; **revoking the key at the provider is what actually ends it**, and the
+  message says so.
+- Provider errors are shown with the key stripped out, in case one is echoed
+  back.
+- The key is only attached when the endpoint is the default provider or a key
+  has been entered — so pointing the endpoint at a proxy that holds the key
+  works without sending a second one.
+
+**Keep such a Space private unless the page is meant to be shared,** and give
+the key a spending limit at the provider. A public page does not expose your
+key — the key is in *your* browser, not in the page — but a bounded key turns
+every remaining scenario into a bounded one.
+
+**Three capabilities are absent there, not disabled:** running code, reading a
+project directory, and fetching URLs. Each needs a server, and there is none.
+The mode is detected at startup, so this cannot be turned on by a misconfigured
+flag.
+
+Files chosen through the browser's file picker are scanned in the page before
+they are attached, with the same patterns the Python side uses. A file that
+looks like it holds a credential is refused, and the message names the line and
+the kind, never the value.
+
+### The page loads nothing from anywhere else
+
+`interface/index.html` declares a Content Security Policy that permits no
+external script, stylesheet, font or image, and restricts network access to the
+page's own origin, `https`, and a local runtime. Model output is inserted as
+text nodes, never as HTML. The policy is there so that a later edit which
+introduces a CDN dependency fails visibly instead of quietly working.
+
 ## Running code, reading files, fetching URLs
 
 The interface can do three things that deserve stating outright.

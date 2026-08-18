@@ -71,8 +71,8 @@ THIRD_PARTY_LICENSES.md   third-party components and their licenses
 SECURITY.md               vulnerability reporting and secret-handling policy
 docs/FINETUNING.md        worksheet to complete before a training run
 hf/                       exactly what is published to the HF model repo
-space/                    the hosted interface (HF Space, Docker)
-interface/                the local interface page
+space/                    front matter and README for the static HF Space
+interface/                the interface page — the same file in both modes
 prompts/                  the personality, as an editable file
 src/caracat_code/         project library
 scripts/                  train.py, evaluate.py, prepare_dataset.py, serve_interface.py
@@ -209,7 +209,7 @@ chat-completions protocol, which means it works with any provider that serves
 the base model — or with a local runtime:
 
 ```bash
-# a hosted provider (default is https://openrouter.ai/api/v1)
+# a hosted provider (default is https://router.huggingface.co/v1)
 python scripts/serve_interface.py --api-base https://your-provider/v1
 
 # a local runtime, e.g. Ollama or llama.cpp
@@ -223,7 +223,8 @@ a real identifier from a dropdown instead of guessing one.
 It is never sent to the browser, never written to a log, and there is
 deliberately no `--api-key` flag, because a key passed on the command line ends
 up in your shell history and in the process list. Anything a provider echoes
-back in an error is redacted before it is shown.
+back in an error is redacted before it is shown. (Without a server this is
+necessarily different — see [Running it without a computer](#running-it-without-a-computer).)
 
 **What the server will and will not do.** It binds to `127.0.0.1` only and
 warns loudly if you change that. It forwards exactly two upstream paths —
@@ -247,28 +248,57 @@ Fields that cannot be determined are recorded as `null` rather than guessed.
 
 ### Running it without a computer
 
-The interface needs a server. If you work from a tablet or a phone, that server
-has to live somewhere else — a Hugging Face Space is the shortest path, and
-`space/` holds everything it needs.
+Everything above needs a server. On a tablet or a phone there isn't one — so the
+page works without it, as a **static Hugging Face Space**: files are served, no
+code runs, and the browser talks to your provider directly.
 
-1. Create a Space on Hugging Face with the **Docker** SDK. Make it **private**
-   unless you mean to share it: anyone who can open a public Space can send
-   requests through it, billed to your provider account.
-2. Add `CARACAT_API_KEY` under *Settings → Variables and secrets*, as a
-   **secret** rather than a variable.
-3. Add the Space's id (for example `Chinook416/caracat-code`) as the repository
+It is the *same* `interface/index.html` in both cases. Which mode applies is
+discovered at startup rather than built in: the page asks its own origin for
+`/api/config`, and if nothing answers with a real configuration, there is no
+server and it switches. That also survives a host which answers unknown paths
+with the page itself — a reply that is not the server's configuration counts as
+no server.
+
+1. Create a Space on Hugging Face with the **Static** SDK. Make it **private**
+   unless you mean to share the page.
+2. Add the Space's id (for example `Chinook416/caracat-code`) as the repository
    variable `HF_SPACE_REPO_ID` in this GitHub repository.
-4. Push to `main`. `.github/workflows/sync-to-space.yml` assembles the page, the
-   personality and the library into an upload directory and publishes it.
+3. Push to `main`. `.github/workflows/sync-to-space.yml` publishes three files:
+   the page, the personality it reads, and the Space's README.
+4. Open the page and paste your provider key into *Settings*.
 
-Nothing is duplicated in git — the workflow copies `src/`, `interface/` and
-`prompts/` at build time, so the personality has exactly one source.
+There is no Space secret, because a static Space runs nothing that could hold
+one. Nothing is duplicated in git either — the workflow copies
+`interface/index.html` and `prompts/caracat_persona.md` at build time, so the
+personality still has exactly one source.
 
-**What a Space cannot do:** read your project files or run code. Those need a
-machine with your files on it. Running code is not merely switched off there —
-the route only exists when the server is bound to a local address, and a
-container never is. Without that rule, anyone who found the address could
-execute programs on your Space.
+#### What changes without a server
+
+| | local | static Space |
+|---|---|---|
+| Chat, personality, model choice, comparison | ✅ | ✅ |
+| Attach files | project directory | the browser's file picker |
+| Keep conversations | on disk, outside the repo | in that browser |
+| Browse a project directory | ✅ | ❌ |
+| Run Python | ✅ | ❌ |
+| Fetch web pages | ✅ | ❌ |
+| Where the API key lives | in the server process | **in the browser** |
+
+The three missing rows are not switched off — there is nothing on a static host
+that could do them. Running code and reading a project need a machine with your
+files on it; fetching other sites is something a browser is not allowed to do.
+
+**The key is the part to be deliberate about.** With no server there is nowhere
+else to keep it: it is stored in the browser on that device and sent only to the
+endpoint shown beside it. So keep such a Space private, give the key a spending
+limit at your provider, and remember a key is revocable — *Forget the key on
+this device* clears it locally, and revoking it at the provider is what actually
+ends it.
+
+If you would rather it never touched the browser, point the **Endpoint** field
+at a small proxy of your own that holds the key. The page sends no
+`Authorization` header when the endpoint is not the default provider, so that
+works with no change here.
 
 ---
 
