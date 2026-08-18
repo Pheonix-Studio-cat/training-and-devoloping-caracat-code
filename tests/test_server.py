@@ -289,6 +289,33 @@ def test_the_page_declares_a_restrictive_policy() -> None:
     assert "img-src data:" in directives
 
 
+def test_the_model_filter_matches_word_by_word() -> None:
+    """Typing "qwen coder next" has to find Qwen/Qwen3-Coder-Next.
+
+    The identifier separates those words with a slash and dashes, never spaces,
+    so matching the filter as one string finds nothing -- and an empty dropdown
+    reads as a broken page rather than as a filter that missed.
+    """
+    page = INDEX_PATH.read_text(encoding="utf-8")
+
+    assert "matchesFilter" in page
+    assert "split(/[\\s,]+/)" in page, "the filter must be split into terms"
+
+
+def test_an_empty_model_list_says_which_kind_of_empty() -> None:
+    """No match and no list are different problems with different fixes.
+
+    The reason lives outside the message thread on purpose: "New chat" clears
+    the thread, and the dropdown is where someone looks when there is nothing
+    to pick.
+    """
+    page = INDEX_PATH.read_text(encoding="utf-8")
+
+    assert "modelLoadError" in page
+    assert "no match for filter" in page
+    assert "could not load models" in page
+
+
 def test_the_page_works_without_a_server() -> None:
     """A static host has no server, so the page has to notice and adapt.
 
