@@ -24,12 +24,23 @@ here — the page in your browser talks to your provider directly.
 
 ## Setting it up
 
-1. Open the page and put your provider's API key into **Settings**. It is stored
-   in your browser and sent only to the endpoint shown next to it.
-2. Pick a model from the dropdown. The list comes from your provider.
+1. Open **Settings** on the page. The **Endpoint** starts on Hugging Face's
+   OpenAI-compatible router, `https://router.huggingface.co/v1`.
+2. Paste an access token into **API key**. A Hugging Face token with the
+   *Inference Providers* permission works here. It is stored in your browser and
+   sent only to the endpoint above.
+3. Pick a model from the dropdown. The list comes from the endpoint.
 
 There is no Space secret to configure, because a static Space runs no code that
 could hold one.
+
+**If the model list stays empty and the browser console mentions CORS**, that
+endpoint does not accept requests from a web page, and no setting here can
+change that — a browser may only call an API that opts in. Two ways on:
+
+- use an endpoint that does permit browser calls, entered in the same field; or
+- put a small proxy of your own in front, which is also how the key stops
+  living in the browser (see below).
 
 ## Where the key lives, plainly
 

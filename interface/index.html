@@ -167,7 +167,7 @@
   </div>
   <div class="field static-only grow">
     <label for="apibase">Endpoint &middot; the provider this page talks to</label>
-    <input id="apibase" type="url" spellcheck="false" placeholder="https://openrouter.ai/api/v1">
+    <input id="apibase" type="url" spellcheck="false" placeholder="https://router.huggingface.co/v1">
   </div>
   <div class="field static-only grow">
     <label for="apikey">API key &middot; kept in this browser, sent only to the endpoint above</label>
@@ -236,7 +236,7 @@
     set(key, value) { try { localStorage.setItem("caracat." + key, value); } catch (e) {} }
   };
 
-  const DEFAULT_API_BASE = "https://openrouter.ai/api/v1";
+  const DEFAULT_API_BASE = "https://router.huggingface.co/v1";
   const MAX_STORED_CHATS = 40;
 
   let config = {};

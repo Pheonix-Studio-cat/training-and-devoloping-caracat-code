@@ -34,7 +34,13 @@ __all__ = [
     "upstream_url",
 ]
 
-DEFAULT_API_BASE = "https://openrouter.ai/api/v1"
+DEFAULT_API_BASE = "https://router.huggingface.co/v1"
+"""Hugging Face's OpenAI-compatible router.
+
+The default is Hugging Face because that is where this project lives and
+where the base model is published. Any OpenAI-compatible endpoint works --
+``--api-base`` takes another provider, or a local runtime.
+"""
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 

@@ -263,7 +263,8 @@ def test_the_page_loads_nothing_from_outside() -> None:
         assert marker not in page, f"the page must not reference {marker!r}"
 
     allowed = {
-        "https://openrouter.ai/api/v1",  # the default provider, editable in the page
+        # the default provider, editable in the page
+        "https://router.huggingface.co/v1",
         "http://localhost:*",  # a local runtime, permitted by the page's own CSP
         "http://127.0.0.1:*;",  # the same, as it appears in the CSP
     }

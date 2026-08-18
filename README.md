@@ -209,7 +209,7 @@ chat-completions protocol, which means it works with any provider that serves
 the base model — or with a local runtime:
 
 ```bash
-# a hosted provider (default is https://openrouter.ai/api/v1)
+# a hosted provider (default is https://router.huggingface.co/v1)
 python scripts/serve_interface.py --api-base https://your-provider/v1
 
 # a local runtime, e.g. Ollama or llama.cpp
