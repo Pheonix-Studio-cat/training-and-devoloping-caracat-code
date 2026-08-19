@@ -30,6 +30,16 @@ from urllib.parse import parse_qs, urlparse
 
 from caracat_code.conversations import ConversationError, ConversationStore
 from caracat_code.fetch import FetchError, fetch_url
+from caracat_code.github import (
+    GitHubError,
+    GitHubSecretError,
+    ProposedChange,
+    RepoRef,
+    list_tree,
+    open_pull_request,
+    parse_repo,
+    read_file,
+)
 from caracat_code.interface import (
     LOCAL_HOSTS,
     ChatRequestError,
@@ -65,6 +75,11 @@ class ServerOptions:
     system_prompt: str | None = None
     workspace: Workspace | None = None
     conversations: ConversationStore | None = None
+    github_repos: tuple[RepoRef, ...] = ()
+    """Repositories offered in the sidebar. Reading them needs no token."""
+    github_token: str = ""
+    """Only ever needed to *change* a repository. Absent means read-only, which
+    is the state the server starts in unless CARACAT_GITHUB_TOKEN is set."""
 
 
 def public_config(options: ServerOptions) -> dict[str, object]:
@@ -82,6 +97,10 @@ def public_config(options: ServerOptions) -> dict[str, object]:
         "conversations_dir": (
             str(options.conversations.root) if options.conversations else None
         ),
+        "github_repos": [str(repo) for repo in options.github_repos],
+        # Whether a token exists, never the token. The page uses this only to
+        # decide whether to offer the "propose a change" button at all.
+        "can_change_github": bool(options.github_token),
     }
 
 
@@ -406,6 +425,103 @@ def make_handler(options: ServerOptions) -> type[BaseHTTPRequestHandler]:
                 },
             )
 
+        # ---- GitHub ----------------------------------------------------
+        #
+        # Reading needs no token: these are public repositories. Changing one
+        # does, and it stays in this process -- the browser never receives it.
+
+        def _repo(self) -> RepoRef | None:
+            """The repository named in the request, or None after replying."""
+            try:
+                return parse_repo(self._query("repo"))
+            except GitHubError as exc:
+                self._send_error_json(400, str(exc))
+                return None
+
+        def route_github_tree(self) -> None:
+            repo = self._repo()
+            if repo is None:
+                return
+            try:
+                entries = list_tree(repo, token=options.github_token or None)
+            except GitHubError as exc:
+                self._send_error_json(400, str(exc))
+                return
+            self._send_json(
+                200,
+                {
+                    "repo": str(repo),
+                    "entries": [{"path": e.path, "size": e.size} for e in entries],
+                },
+            )
+
+        def route_github_file(self) -> None:
+            repo = self._repo()
+            if repo is None:
+                return
+            try:
+                found = read_file(
+                    repo, self._query("path"), token=options.github_token or None
+                )
+            except GitHubSecretError as exc:
+                # 403, as for a project file: the request was fine, the content
+                # is what makes it refusable.
+                self._send_error_json(403, str(exc))
+                return
+            except GitHubError as exc:
+                self._send_error_json(400, str(exc))
+                return
+            self._send_json(
+                200,
+                {
+                    "repo": found.repo,
+                    "path": found.path,
+                    "text": found.text,
+                    "lines": found.lines,
+                },
+            )
+
+        def route_github_pull(self) -> None:
+            """Open a pull request for changes a person has just approved.
+
+            The route exists whether or not a token is configured, so the reason
+            for refusing is a sentence rather than a 404 to puzzle over.
+            """
+            body = self._read_body()
+            if not isinstance(body, dict):
+                self._send_error_json(400, "expected a JSON object")
+                return
+            try:
+                repo = parse_repo(str(body.get("repo", "")))
+                raw_changes = body.get("changes")
+                if not isinstance(raw_changes, list) or not raw_changes:
+                    raise GitHubError("there is nothing to change")
+                changes = []
+                for item in raw_changes:
+                    if not isinstance(item, dict):
+                        raise GitHubError("each change must be an object")
+                    changes.append(
+                        ProposedChange(
+                            path=str(item.get("path", "")),
+                            text=str(item.get("text", "")),
+                        )
+                    )
+                url = open_pull_request(
+                    repo,
+                    changes,
+                    title=str(body.get("title") or "Change proposed by Caracat Code"),
+                    body=str(body.get("body") or ""),
+                    token=options.github_token,
+                    branch=str(body.get("branch") or ""),
+                )
+            except GitHubSecretError as exc:
+                self._send_error_json(403, str(exc))
+                return
+            except GitHubError as exc:
+                self._send_error_json(400, str(exc))
+                return
+            self._send_json(200, {"url": url})
+
         def route_chat(self) -> None:
             try:
                 payload = build_chat_payload(
@@ -446,6 +562,8 @@ def make_handler(options: ServerOptions) -> type[BaseHTTPRequestHandler]:
                     "/api/models": self.route_models,
                     "/api/files": self.route_files,
                     "/api/file": self.route_file,
+                    "/api/github/tree": self.route_github_tree,
+                    "/api/github/file": self.route_github_file,
                     "/api/conversations": self.route_conversations,
                 }
             routes: dict[str, Callable[[], None]] = {
@@ -453,6 +571,7 @@ def make_handler(options: ServerOptions) -> type[BaseHTTPRequestHandler]:
                 "/api/conversations": self.route_save_conversation,
                 "/api/conversations/delete": self.route_delete_conversation,
                 "/api/fetch": self.route_fetch,
+                "/api/github/pull": self.route_github_pull,
             }
             # Running code exists only on a locally bound server. Not a flag
             # somebody can forget to unset -- bind outward and the route is
