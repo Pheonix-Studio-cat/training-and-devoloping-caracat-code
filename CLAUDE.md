@@ -162,6 +162,26 @@ probing `/api/config` at startup rather than by a build flag.
 
 ---
 
+## 7a. GitHub access
+
+`src/caracat_code/github.py` reads public repositories and proposes changes to
+them. Three rules govern any change to it:
+
+- **The hosts are `api.github.com` and `raw.githubusercontent.com`, written into
+  the module.** Never add a parameter that takes a host. That would turn it into
+  an open proxy with a GitHub label.
+- **Nothing commits to the default branch.** A change is a branch and a pull
+  request. Do not add a path that bypasses that, in either the module or the
+  page.
+- **The model proposes, a person acts.** The interface may never send a change
+  without an explicit press. Opening the confirmation panel must make no
+  request.
+
+Repository content is scanned for credentials before it is attached *and* before
+it is committed. A public repository is not a reason to skip either.
+
+---
+
 ## 8. Git workflow
 
 Before major changes: check `git status`, the current branch, recent commits and
@@ -214,7 +234,7 @@ interface/                the interface page — one file, two modes
 prompts/                  the personality, as an editable file
 src/caracat_code/         project library (config, dataset gate, data prep, eval
                           recorder, interface, server, workspace, sandbox,
-                          conversations, fetch, persona)
+                          conversations, fetch, github, persona)
 scripts/                  train.py, evaluate.py, prepare_dataset.py, serve_interface.py
 configs/                  example training configurations
 tests/                    pytest suite

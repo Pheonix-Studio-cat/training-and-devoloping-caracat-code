@@ -758,7 +758,9 @@
         return;
       }
       const newline = part.indexOf("\n");
-      const language = (newline === -1 ? "" : part.slice(0, newline)).trim().toLowerCase();
+      const info = (newline === -1 ? "" : part.slice(0, newline)).trim();
+      const language = info.split(/\s+/)[0].toLowerCase();
+      const blockTarget = parseBlockTarget(info);   // not `target`: that is this function's parameter
       const code = newline === -1 ? part : part.slice(newline + 1);
 
       const wrap = el("div", "codewrap");
@@ -781,8 +783,101 @@
         run.addEventListener("click", () => runCode(code, wrap, run));
         bar.append(run);
       }
+
+      // A block that names a file can become a pull request -- but only when
+      // someone presses this. The model writes the proposal; it never sends it.
+      if (blockTarget && config.can_change_github && connectedRepos().length) {
+        const propose = el("button", "small", "Propose…");
+        propose.addEventListener("click", () => showProposal(code, blockTarget, wrap, propose));
+        bar.append(propose);
+      }
       wrap.append(pre, bar);
       target.append(wrap);
+    });
+  }
+
+  // A fenced block can say where it belongs:  ```python file=src/app.py repo=owner/name
+  // Without a file= there is nothing to propose, which is the safe default:
+  // ordinary code in an answer stays ordinary code.
+  function parseBlockTarget(info) {
+    const path = /(?:^|\s)(?:file|path)=("[^"]+"|\S+)/.exec(info);
+    if (!path) return null;
+    const repo = /(?:^|\s)repo=("[^"]+"|\S+)/.exec(info);
+    const unquote = (value) => value.replace(/^"|"$/g, "");
+    return { path: unquote(path[1]), repo: repo ? unquote(repo[1]) : null };
+  }
+
+  function branchNameFor(path) {
+    const stem = path.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+      .slice(0, 40).toLowerCase() || "change";
+    return "caracat/" + stem + "-" + Date.now().toString(36).slice(-5);
+  }
+
+  // Everything about the change, shown before anything happens. The button is
+  // the only thing that reaches GitHub, and it is the person who presses it.
+  function showProposal(code, target, container, button) {
+    const previous = container.querySelector(".runout");
+    if (previous) previous.remove();
+
+    const repos = connectedRepos();
+    const chosen = target.repo
+      ? repos.find((r) => r.slug === target.repo || r.label === target.repo)
+      : (repos.length === 1 ? repos[0] : null);
+
+    const panel = el("div", "runout");
+    container.append(panel);
+
+    if (!chosen) {
+      panel.classList.add("bad");
+      panel.append(el("div", "head", target.repo
+        ? `${target.repo} is not one of the connected repositories.`
+        : "Two repositories are connected, so the block has to say which one: "
+          + "add repo=owner/name to its opening line."));
+      return;
+    }
+
+    const branch = branchNameFor(target.path);
+    panel.append(el("div", "head",
+      `${chosen.slug} — a new branch ${branch}, then a pull request against ` +
+      `${chosen.ref}. Nothing is written to ${chosen.ref} itself.`));
+
+    const title = el("input");
+    title.type = "text";
+    title.value = "Update " + target.path;
+    title.style.width = "100%";
+    panel.append(title);
+
+    const row = el("div", "codebar");
+    row.style.position = "static";
+    row.style.marginTop = "8px";
+    const go = el("button", "small primary", "Open pull request");
+    const cancel = el("button", "small", "Cancel");
+    cancel.addEventListener("click", () => panel.remove());
+    row.append(go, cancel);
+    panel.append(row);
+
+    go.addEventListener("click", async () => {
+      go.disabled = true;
+      go.textContent = "Opening…";
+      try {
+        const url = await backend.openPull(chosen, [{ path: target.path, text: code }], {
+          title: title.value || ("Update " + target.path),
+          body: "Proposed in Caracat Code and reviewed before opening.\n\n"
+                + "File: " + target.path,
+          branch: branch
+        });
+        panel.textContent = "";
+        panel.append(el("div", "head", "Pull request opened:"));
+        const link = el("div", null, url);
+        panel.append(link);
+        button.textContent = "Proposed";
+        button.disabled = true;
+      } catch (err) {
+        panel.classList.add("bad");
+        const message = el("div", "head", err.message);
+        panel.textContent = "";
+        panel.append(message);
+      }
     });
   }
 
