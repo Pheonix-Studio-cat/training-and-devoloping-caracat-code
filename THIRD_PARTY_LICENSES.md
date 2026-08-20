@@ -62,7 +62,7 @@ dependencies are deliberately absent — see "Not yet included" below.
 | pytest | `dev` | MIT | ✅ Verified 2026-08-16 — PyPI metadata (`license_expression: MIT`) |
 | ruff | `dev` | MIT | ✅ Verified 2026-08-16 — PyPI metadata (`license_expression: MIT`) |
 
-Two later additions deliberately kept this list unchanged:
+Later additions deliberately kept this list unchanged:
 
 - the local chat interface (`interface/`, `scripts/serve_interface.py`) uses only
   the Python standard library and plain browser APIs — no CDN scripts, no fonts,
@@ -70,7 +70,16 @@ Two later additions deliberately kept this list unchanged:
 - the dataset preparation tooling (`src/caracat_code/data_prep.py`,
   `scripts/prepare_dataset.py`) uses only the standard library;
 - so do the workspace, sandbox, conversation store and fetch modules added
-  later. The whole interface is standard library plus plain browser APIs.
+  later. The whole interface is standard library plus plain browser APIs;
+- the GitHub integration (`src/caracat_code/github.py`) uses `urllib` on the
+  server and `fetch` in the browser. **No GitHub SDK or HTTP library was added**,
+  which was a decision rather than an accident: a client for two endpoints is
+  smaller than the licence review a dependency would require, and it keeps the
+  reachable hosts something this repository states rather than inherits.
+
+GitHub itself is a service this project talks to, not a component it ships.
+Nothing of GitHub's is redistributed here, so there is no licence of theirs to
+record — only their terms of use, which apply to whoever runs the interface.
 
 ---
 

@@ -180,10 +180,55 @@ What it can do beyond chatting:
 | **Keep conversations** | saved automatically, listed in the sidebar |
 | **Compare two models** | the `compare` toggle answers the same question twice, side by side |
 | **Fetch web pages** | URLs in your message are fetched and attached automatically |
+| **Read GitHub repositories** | `--github-repo owner/name`, more than once for more than one |
+| **Propose changes as pull requests** | a `Propose…` button on any block the model marks with a file |
 
 The personality lives in [`prompts/caracat_persona.md`](prompts/caracat_persona.md) —
 an ordinary text file. Edit a line, reload the page, and the behaviour changes.
 Its first rule is the one that matters most: **ask instead of guessing**.
+
+#### Working with GitHub
+
+Public repositories, read without a token:
+
+```bash
+python scripts/serve_interface.py \
+    --github-repo Pheonix-Studio-cat/training-and-devoloping-caracat-code \
+    --github-repo some-owner/another-project
+```
+
+Each connected repository becomes a section in the sidebar; tapping a file
+attaches it, labelled with the repository it came from, so a conversation about
+two projects never leaves it unclear which file is which. **This works on the
+hosted page too** — GitHub is one of the few APIs that permits a web page to
+call it, which is why the Space can read a repository while it cannot fetch an
+arbitrary URL.
+
+The whole file tree arrives in one request, and file contents come from
+`raw.githubusercontent.com`, which does not consume GitHub's hourly allowance.
+Browsing costs one request, not one per file.
+
+**Changing a repository** needs a token, and is deliberately awkward in exactly
+one way: the model cannot do it. It marks a block with the file it belongs to —
+
+````
+```python file=src/app.py repo=owner/name
+...the complete new contents...
+```
+````
+
+— and the page offers a **Propose…** button. Pressing it creates a branch,
+writes the file and opens a pull request. **Nothing is written to the default
+branch**, in any mode: there is no function in `src/caracat_code/github.py` that
+can, and one that tries is refused by name.
+
+```bash
+export CARACAT_GITHUB_TOKEN='...'   # fine-grained, only the repositories you name
+```
+
+Give the token *Contents* and *Pull requests* on read+write for exactly those
+repositories, and nothing else. Locally it stays in the server process; there is
+no flag for it, for the same reason there is none for the API key.
 
 #### The limits, plainly
 
@@ -202,6 +247,10 @@ Its first rule is the one that matters most: **ask instead of guessing**.
   re-checked. No credentials are ever attached to a fetch.
 - **Conversations are stored outside the repository**, so they cannot be
   committed by accident.
+- **GitHub is two fixed hosts**, `api.github.com` and
+  `raw.githubusercontent.com`, written into the code rather than configurable.
+  A repository file is scanned for credentials before it is attached and before
+  it is committed — public is not the same as harmless.
 
 **What it talks to.** No Caracat weights have been trained yet, so there is
 nothing of our own to connect to. The interface speaks the OpenAI-compatible
@@ -279,13 +328,22 @@ personality still has exactly one source.
 | Chat, personality, model choice, comparison | ✅ | ✅ |
 | Attach files | project directory | the browser's file picker |
 | Keep conversations | on disk, outside the repo | in that browser |
+| Read GitHub repositories | ✅ | ✅ |
+| Propose changes as pull requests | ✅ | ✅ (see below) |
 | Browse a project directory | ✅ | ❌ |
 | Run Python | ✅ | ❌ |
 | Fetch web pages | ✅ | ❌ |
 | Where the API key lives | in the server process | **in the browser** |
 
 The three missing rows are not switched off — there is nothing on a static host
-that could do them. Running code and reading a project need a machine with your
+that could do them.
+
+**One uncertainty, stated rather than hidden.** Reading GitHub from the page is
+measured and works. *Writing* from a page depends on GitHub accepting a
+preflighted request from a browser; its documentation says it does, and this
+could not be confirmed from the development environment, whose proxy answers
+those requests itself. So the page tries, and if the browser refuses, it says
+so and points at the local mode instead of failing silently. Running code and reading a project need a machine with your
 files on it; fetching other sites is something a browser is not allowed to do.
 
 **The key is the part to be deliberate about.** With no server there is nowhere

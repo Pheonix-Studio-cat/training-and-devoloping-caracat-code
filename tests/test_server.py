@@ -267,6 +267,12 @@ def test_the_page_loads_nothing_from_outside() -> None:
         "https://router.huggingface.co/v1",
         "http://localhost:*",  # a local runtime, permitted by the page's own CSP
         "http://127.0.0.1:*;",  # the same, as it appears in the CSP
+        # The two GitHub hosts, written into the page exactly as they are
+        # written into src/caracat_code/github.py. A third one appearing here
+        # means someone made the host configurable, which is the thing that
+        # would turn this into an open proxy.
+        "https://api.github.com",
+        "https://raw.githubusercontent.com",
     }
     found = set(re.findall(r"https?://[^\"' <>)]*", page))
     unexpected = sorted(found - allowed)
@@ -287,6 +293,36 @@ def test_the_page_declares_a_restrictive_policy() -> None:
     assert "script-src 'unsafe-inline'" in directives
     assert "style-src 'unsafe-inline'" in directives
     assert "img-src data:" in directives
+
+
+def test_a_change_is_proposed_never_performed() -> None:
+    """The separation the whole GitHub write path rests on.
+
+    The model marks a block with the file it belongs to; the page turns that
+    into a button. Nothing reaches GitHub until a person presses it, and the
+    default branch is refused on both sides.
+    """
+    page = INDEX_PATH.read_text(encoding="utf-8")
+
+    assert "parseBlockTarget" in page
+    assert "showProposal" in page
+    # The button only exists when a token is configured and a repository is
+    # connected -- an unmarked block stays ordinary code.
+    assert "config.can_change_github && connectedRepos().length" in page
+    assert "Open pull request" in page
+    assert "Refusing to write to" in page
+
+
+def test_the_personality_says_a_change_is_only_a_proposal() -> None:
+    persona = (
+        Path(__file__).resolve().parent.parent / "prompts" / "caracat_persona.md"
+    ).read_text(encoding="utf-8")
+
+    assert "file=" in persona
+    assert "repo=owner/name" in persona
+    # The instruction that stops it reporting a change as already made.
+    assert "You never write anything yourself" in persona
+    assert "whole file" in persona
 
 
 def test_the_model_filter_matches_word_by_word() -> None:

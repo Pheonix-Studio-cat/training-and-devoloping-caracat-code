@@ -72,6 +72,8 @@ the default provider, so such a proxy works without any change here.
 | Compare two models side by side | ✅ |
 | Attach files from your device | ✅ — through the browser's file picker |
 | Keep conversations | ✅ — in this browser, not on a server |
+| Read GitHub repositories | ✅ — public ones, no token needed |
+| Propose changes as pull requests | ✅ — with a GitHub token, and only on a press |
 | Browse a project directory | ❌ — that needs a server with your files on it |
 | Run code | ❌ — that needs a server too |
 | Fetch web pages | ❌ — a browser is not allowed to read other sites |
@@ -86,6 +88,28 @@ python scripts/serve_interface.py --project-dir ~/your-project
 
 Then the key stays in that server process and never reaches the page, the
 project directory is readable, and Python can be run under limits.
+
+## Working with GitHub
+
+Add repositories in **Settings** as `owner/name`, one per line. Public ones need
+no token, and each becomes its own section in the sidebar — attach a file and it
+carries the repository in its name, so a conversation about two projects stays
+clear about which file is which.
+
+This works here, unlike fetching an ordinary web page, because GitHub is one of
+the few APIs that permits a web page to call it.
+
+**To let it propose changes**, add a GitHub token in Settings. Make it
+fine-grained, limited to exactly those repositories, with *Contents* and *Pull
+requests* on read+write and nothing else. Then a block the model marks with a
+file gets a **Propose…** button:
+
+- pressing it creates a branch and opens a pull request — never a commit to the
+  default branch;
+- opening the confirmation panel sends nothing at all; only the button does;
+- the model can propose but cannot act. That separation is the point.
+
+The token lives in this browser, like the API key, with the same *Forget* button.
 
 **Attached files are checked before they are sent.** A file that looks like it
 holds a credential is refused, and the message names the line, never the value.

@@ -174,6 +174,15 @@
     <input id="apikey" type="password" spellcheck="false" autocomplete="off" placeholder="paste your provider key">
     <button id="forget-key" class="small">Forget the key on this device</button>
   </div>
+  <div class="field grow">
+    <label for="ghrepos">GitHub repositories &middot; public only, owner/name, one per line</label>
+    <textarea id="ghrepos" spellcheck="false" placeholder="owner/name&#10;other-owner/other-name@branch"></textarea>
+  </div>
+  <div class="field static-only grow">
+    <label for="ghtoken">GitHub token &middot; only to propose changes; kept in this browser</label>
+    <input id="ghtoken" type="password" spellcheck="false" autocomplete="off" placeholder="optional — reading needs none">
+    <button id="forget-ghtoken" class="small">Forget the GitHub token</button>
+  </div>
 </div>
 
 <div class="layout">
@@ -298,6 +307,218 @@
     return null;
   }
 
+  // ---- GitHub --------------------------------------------------------
+  //
+  // Two hosts, written here, never taken from anywhere. GitHub is one of the
+  // few APIs that lets a web page call it, which is what makes this work on a
+  // static host where fetching an arbitrary site does not.
+  //
+  // The lists below mirror src/caracat_code/github.py. They are duplicated
+  // rather than shared because there is no server in this mode to share them
+  // with -- if you change one, change the other.
+
+  const GITHUB_API = "https://api.github.com";
+  const GITHUB_RAW = "https://raw.githubusercontent.com";
+  const GITHUB_MAX_FILE_BYTES = 256 * 1024;
+
+  const REPO_PART = /^[A-Za-z0-9_](?:[A-Za-z0-9._-]*[A-Za-z0-9_])?$/;
+  const BRANCH_PART = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,98}[A-Za-z0-9]$/;
+
+  const EXCLUDED_DIRS = new Set([".git", ".hg", ".svn", ".idea", ".vscode",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache", "__pycache__", "node_modules",
+    ".venv", "venv", "env", "dist", "build", ".next", ".tox"]);
+
+  const NEVER_READABLE_NAMES = [/^\.env(\..*)?$/, /\.pem$/, /\.key$/, /\.p12$/,
+    /\.pfx$/, /^id_rsa/, /^id_ed25519/, /^credentials\.json$/,
+    /^secrets\.ya?ml$/, /^\.npmrc$/, /^\.pypirc$/, /^\.netrc$/];
+
+  const TEXT_SUFFIXES = [".py", ".pyi", ".js", ".mjs", ".cjs", ".ts", ".tsx",
+    ".jsx", ".json", ".md", ".rst", ".txt", ".yml", ".yaml", ".toml", ".ini",
+    ".cfg", ".html", ".css", ".scss", ".sh", ".bash", ".sql", ".go", ".rs",
+    ".java", ".kt", ".c", ".h", ".cpp", ".hpp", ".rb", ".php", ".swift",
+    ".xml", ".csv", ".gitignore", ".dockerignore"];
+  const TEXT_NAMES = ["Dockerfile", "Makefile", "LICENSE", "NOTICE"];
+
+  function parseRepo(spec) {
+    const text = String(spec || "").trim();
+    if (!text) throw new Error("no repository given; expected owner/name");
+    if (text.includes("://") || text.startsWith("github.com")) {
+      throw new Error(`"${text}" looks like a URL. Use just owner/name.`);
+    }
+    let body = text, ref = "main";
+    const at = text.indexOf("@");
+    if (at !== -1) {
+      body = text.slice(0, at);
+      ref = text.slice(at + 1);
+      if (!BRANCH_PART.test(ref)) throw new Error(`"${ref}" is not a usable branch name`);
+    }
+    const parts = body.split("/");
+    if (parts.length !== 2 || !REPO_PART.test(parts[0]) || !REPO_PART.test(parts[1])) {
+      throw new Error(`"${text}" should be owner/name — two parts, one slash`);
+    }
+    return { owner: parts[0], name: parts[1], ref: ref,
+             slug: parts[0] + "/" + parts[1], label: parts[0] + "/" + parts[1] + "@" + ref };
+  }
+
+  function parseRepoList(text) {
+    const specs = String(text || "").split(/[\s,]+/).filter(Boolean);
+    const repos = [];
+    for (const spec of specs) {
+      try { repos.push(parseRepo(spec)); }
+      catch (err) { /* a half-typed repo is not an error worth shouting about */ }
+    }
+    return repos;
+  }
+
+  function isInterestingPath(path) {
+    const parts = path.split("/");
+    if (parts.slice(0, -1).some((part) => EXCLUDED_DIRS.has(part))) return false;
+    const name = parts[parts.length - 1];
+    if (NEVER_READABLE_NAMES.some((pattern) => pattern.test(name))) return false;
+    if (TEXT_NAMES.includes(name)) return true;
+    return TEXT_SUFFIXES.some((suffix) => name.endsWith(suffix));
+  }
+
+  async function githubCall(url, token, options) {
+    const headers = { "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28" };
+    if (token) headers["Authorization"] = "Bearer " + token;
+    let response;
+    try {
+      response = await fetch(url, Object.assign({}, options,
+        { headers: Object.assign(headers, (options || {}).headers) }));
+    } catch (err) {
+      // A browser reports a CORS refusal as a bare TypeError. Saying so beats
+      // "Failed to fetch", which sends people looking for a network problem.
+      throw new Error(
+        "The browser would not send that request to GitHub" +
+        ((options && options.method && options.method !== "GET")
+          ? " — writing to GitHub from a hosted page may not be permitted. " +
+            "Reading works; run the interface on your own machine to make changes."
+          : ".") + " (" + err.message + ")");
+    }
+    if (!response.ok) {
+      let detail = "";
+      try { detail = ((await response.json()).message) || ""; } catch (e) {}
+      if (response.status === 404) {
+        throw new Error("GitHub says that does not exist. Check the owner and " +
+          "name; a private repository is not reachable here. " + detail);
+      }
+      if (response.status === 403 && /rate limit/i.test(detail)) {
+        throw new Error("GitHub's hourly allowance for anonymous requests is " +
+          "used up. It refills on the hour. " + detail);
+      }
+      throw new Error("GitHub returned " + response.status + ". " + detail);
+    }
+    return response;
+  }
+
+  async function githubTree(repo, token) {
+    const url = `${GITHUB_API}/repos/${repo.owner}/${repo.name}` +
+                `/git/trees/${encodeURIComponent(repo.ref)}?recursive=1`;
+    const data = await (await githubCall(url, token)).json();
+    return (data.tree || [])
+      .filter((item) => item.type === "blob" && isInterestingPath(item.path || "")
+                        && (item.size || 0) <= GITHUB_MAX_FILE_BYTES)
+      .map((item) => ({ path: item.path, size: item.size || 0 }))
+      .sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  async function githubFile(repo, path, token) {
+    const clean = String(path || "").trim();
+    if (!clean || clean.startsWith("/") || clean.split("/").includes("..")) {
+      throw new Error(`"${path}" does not stay inside the repository`);
+    }
+    const url = `${GITHUB_RAW}/${repo.owner}/${repo.name}/` +
+                `${encodeURIComponent(repo.ref)}/` +
+                clean.split("/").map(encodeURIComponent).join("/");
+    const text = await (await githubCall(url, token)).text();
+    if (text.length > GITHUB_MAX_FILE_BYTES) {
+      throw new Error(`${clean} is too large to attach.`);
+    }
+    if (text.includes("\u0000")) {
+      throw new Error(`${clean} looks like a binary file.`);
+    }
+    // The same check a project file gets. A public repository is not a reason
+    // to forward a key to an inference provider.
+    const finding = findSecret(text);
+    if (finding) {
+      throw new Error(`${clean} was not attached: line ${finding.line} looks ` +
+        `like a ${finding.pattern}. The value is not repeated here.`);
+    }
+    return { repo: repo.slug, path: clean, text: text };
+  }
+
+  // Opening a pull request from the browser. Mirrors open_pull_request in
+  // src/caracat_code/github.py, including the one refusal that matters: never
+  // the default branch. Whether a browser is allowed to do this at all is
+  // answered by the first attempt -- githubCall says so plainly if not.
+  async function githubOpenPull(repo, changes, options) {
+    const token = options.token;
+    if (!token) {
+      throw new Error("Changing a repository needs a GitHub token with " +
+        "Contents and Pull requests permission for exactly that repository.");
+    }
+    if (!changes.length) throw new Error("There is nothing to change.");
+    if (changes.length > 20) {
+      throw new Error(changes.length + " files is more than one pull request " +
+        "should carry. Split it up.");
+    }
+
+    const api = (path, init) =>
+      githubCall(`${GITHUB_API}/repos/${repo.owner}/${repo.name}${path}`, token, init);
+    const send = (path, method, payload) => api(path, {
+      method: method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const base = (await (await api("", {})).json()).default_branch || "main";
+    if (options.branch === base) {
+      throw new Error(`Refusing to write to "${base}" directly. Changes go on ` +
+        "their own branch and through a pull request.");
+    }
+
+    for (const change of changes) {
+      const finding = findSecret(change.text);
+      if (finding) {
+        throw new Error(`${change.path} was not written: line ${finding.line} ` +
+          `looks like a ${finding.pattern}. A key committed to a public ` +
+          "repository is public immediately.");
+      }
+    }
+
+    const tip = (await (await api(
+      "/git/ref/heads/" + encodeURIComponent(base), {})).json()).object.sha;
+    await send("/git/refs", "POST",
+      { ref: "refs/heads/" + options.branch, sha: tip });
+
+    for (const change of changes) {
+      const where = "/contents/" +
+        change.path.split("/").map(encodeURIComponent).join("/");
+      let existing = null;
+      try {
+        existing = (await (await api(
+          where + "?ref=" + encodeURIComponent(options.branch), {})).json()).sha;
+      } catch (err) { /* absent means a new file, which is fine */ }
+      const payload = {
+        message: options.title,
+        // btoa cannot take characters above 255, so the text is turned into
+        // UTF-8 bytes first. Without this an umlaut breaks the commit.
+        content: btoa(String.fromCharCode(...new TextEncoder().encode(change.text))),
+        branch: options.branch
+      };
+      if (existing) payload.sha = existing;
+      await send(where, "PUT", payload);
+    }
+
+    const opened = await (await send("/pulls", "POST", {
+      title: options.title, body: options.body,
+      head: options.branch, base: base
+    })).json();
+    return opened.html_url;
+  }
+
   // ---- the two backends ----------------------------------------------
   //
   // This page runs in two places. On your own machine it talks to its own
@@ -334,6 +555,20 @@
     }),
     listFiles: () => api("/api/files").then((d) => d.entries),
     readFile: (path) => api("/api/file?path=" + encodeURIComponent(path)),
+    repoTree: (repo) =>
+      api("/api/github/tree?repo=" + encodeURIComponent(repo.label))
+        .then((d) => d.entries),
+    repoFile: (repo, path) =>
+      api("/api/github/file?repo=" + encodeURIComponent(repo.label) +
+          "&path=" + encodeURIComponent(path)),
+    openPull: (repo, changes, options) => api("/api/github/pull", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        repo: repo.label, changes: changes,
+        title: options.title, body: options.body, branch: options.branch
+      })
+    }).then((d) => d.url),
     run: (code, files) => api("/api/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -385,7 +620,9 @@
         can_run_code: false,          // no server, nothing to run code on
         can_browse_project: false,    // no server, no directory to browse
         can_fetch: false,             // other sites refuse a browser from here
-        can_save_conversations: true  // in this browser, not on a server
+        can_save_conversations: true, // in this browser, not on a server
+        github_repos: parseRepoList(store.get("repos", "")).map((r) => r.label),
+        can_change_github: Boolean(store.get("ghToken", "").trim())
       };
     },
 
@@ -452,6 +689,17 @@
 
     async listFiles() { return []; },
     async readFile() { throw new Error("There is no project directory without a server."); },
+
+    // GitHub is reached directly, which is possible because GitHub is one of
+    // the few APIs that permits a web page to call it.
+    repoTree(repo) { return githubTree(repo, store.get("ghToken", "").trim()); },
+    repoFile(repo, path) {
+      return githubFile(repo, path, store.get("ghToken", "").trim());
+    },
+    openPull(repo, changes, options) {
+      return githubOpenPull(repo, changes,
+        Object.assign({ token: store.get("ghToken", "").trim() }, options));
+    },
     async run() { throw new Error("Running code needs a server. Start the interface on your own machine."); },
     async fetchUrl() { throw new Error("Fetching other sites needs a server; a browser is not allowed to."); }
   };
@@ -510,7 +758,9 @@
         return;
       }
       const newline = part.indexOf("\n");
-      const language = (newline === -1 ? "" : part.slice(0, newline)).trim().toLowerCase();
+      const info = (newline === -1 ? "" : part.slice(0, newline)).trim();
+      const language = info.split(/\s+/)[0].toLowerCase();
+      const blockTarget = parseBlockTarget(info);   // not `target`: that is this function's parameter
       const code = newline === -1 ? part : part.slice(newline + 1);
 
       const wrap = el("div", "codewrap");
@@ -533,8 +783,101 @@
         run.addEventListener("click", () => runCode(code, wrap, run));
         bar.append(run);
       }
+
+      // A block that names a file can become a pull request -- but only when
+      // someone presses this. The model writes the proposal; it never sends it.
+      if (blockTarget && config.can_change_github && connectedRepos().length) {
+        const propose = el("button", "small", "Propose…");
+        propose.addEventListener("click", () => showProposal(code, blockTarget, wrap, propose));
+        bar.append(propose);
+      }
       wrap.append(pre, bar);
       target.append(wrap);
+    });
+  }
+
+  // A fenced block can say where it belongs:  ```python file=src/app.py repo=owner/name
+  // Without a file= there is nothing to propose, which is the safe default:
+  // ordinary code in an answer stays ordinary code.
+  function parseBlockTarget(info) {
+    const path = /(?:^|\s)(?:file|path)=("[^"]+"|\S+)/.exec(info);
+    if (!path) return null;
+    const repo = /(?:^|\s)repo=("[^"]+"|\S+)/.exec(info);
+    const unquote = (value) => value.replace(/^"|"$/g, "");
+    return { path: unquote(path[1]), repo: repo ? unquote(repo[1]) : null };
+  }
+
+  function branchNameFor(path) {
+    const stem = path.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+      .slice(0, 40).toLowerCase() || "change";
+    return "caracat/" + stem + "-" + Date.now().toString(36).slice(-5);
+  }
+
+  // Everything about the change, shown before anything happens. The button is
+  // the only thing that reaches GitHub, and it is the person who presses it.
+  function showProposal(code, target, container, button) {
+    const previous = container.querySelector(".runout");
+    if (previous) previous.remove();
+
+    const repos = connectedRepos();
+    const chosen = target.repo
+      ? repos.find((r) => r.slug === target.repo || r.label === target.repo)
+      : (repos.length === 1 ? repos[0] : null);
+
+    const panel = el("div", "runout");
+    container.append(panel);
+
+    if (!chosen) {
+      panel.classList.add("bad");
+      panel.append(el("div", "head", target.repo
+        ? `${target.repo} is not one of the connected repositories.`
+        : "Two repositories are connected, so the block has to say which one: "
+          + "add repo=owner/name to its opening line."));
+      return;
+    }
+
+    const branch = branchNameFor(target.path);
+    panel.append(el("div", "head",
+      `${chosen.slug} — a new branch ${branch}, then a pull request against ` +
+      `${chosen.ref}. Nothing is written to ${chosen.ref} itself.`));
+
+    const title = el("input");
+    title.type = "text";
+    title.value = "Update " + target.path;
+    title.style.width = "100%";
+    panel.append(title);
+
+    const row = el("div", "codebar");
+    row.style.position = "static";
+    row.style.marginTop = "8px";
+    const go = el("button", "small primary", "Open pull request");
+    const cancel = el("button", "small", "Cancel");
+    cancel.addEventListener("click", () => panel.remove());
+    row.append(go, cancel);
+    panel.append(row);
+
+    go.addEventListener("click", async () => {
+      go.disabled = true;
+      go.textContent = "Opening…";
+      try {
+        const url = await backend.openPull(chosen, [{ path: target.path, text: code }], {
+          title: title.value || ("Update " + target.path),
+          body: "Proposed in Caracat Code and reviewed before opening.\n\n"
+                + "File: " + target.path,
+          branch: branch
+        });
+        panel.textContent = "";
+        panel.append(el("div", "head", "Pull request opened:"));
+        const link = el("div", null, url);
+        panel.append(link);
+        button.textContent = "Proposed";
+        button.disabled = true;
+      } catch (err) {
+        panel.classList.add("bad");
+        const message = el("div", "head", err.message);
+        panel.textContent = "";
+        panel.append(message);
+      }
     });
   }
 
@@ -641,40 +984,118 @@
     } catch (err) { showError("thread", err.message); }
   }
 
+  // Which repositories are connected right now. Read from the settings field
+  // rather than kept in a second place, so what is shown is what is typed.
+  function connectedRepos() {
+    return parseRepoList($("ghrepos").value);
+  }
+
+  const openRepos = new Set();   // which sections are expanded
+
+  // Rendering the sidebar waits on the network, so two quick clicks start two
+  // runs. Without this, the slower one carries on appending to a panel the
+  // faster one has already cleared, and the sidebar ends up showing a state
+  // nobody asked for. Each run takes a ticket and stops as soon as it is stale.
+  let filesRender = 0;
+
   async function refreshFiles() {
+    const ticket = ++filesRender;
+    const current = () => ticket === filesRender;
     const panel = $("panel-files");
     panel.textContent = "";
 
-    if (!config.can_browse_project) {
+    if (config.can_browse_project) {
+      panel.append(el("div", "row dir", "Project"));
+      let entries = [];
+      try { entries = await backend.listFiles(); }
+      catch (err) { panel.append(el("div", "empty", err.message)); }
+      if (!current()) return;
+      entries.forEach((entry) => {
+        const depth = entry.path.split("/").length - 1;
+        const row = el("div", "row" + (entry.is_dir ? " dir" : ""));
+        row.style.paddingLeft = 7 + depth * 11 + "px";
+        row.append(el("div", "name", entry.path.split("/").pop()));
+        if (!entry.is_dir) {
+          row.append(el("div", "meta", entry.size > 1024
+            ? Math.round(entry.size / 1024) + " kB" : entry.size + " B"));
+          row.addEventListener("click", () => attachFile(entry.path));
+          row.title = "Attach " + entry.path;
+        }
+        panel.append(row);
+      });
+    } else if (backend.mode === "static") {
       // No server means no directory to walk. The browser's own picker still
       // reaches the device's files, which is the part that matters on a tablet.
       const pick = el("button", "small", "Choose files…");
       pick.addEventListener("click", () => $("filepicker").click());
       panel.append(pick);
+    }
+
+    const repos = connectedRepos();
+    if (!repos.length) {
       panel.append(el("div", "empty",
-        "Without a server there is no project to browse. Pick files here instead — " +
-        "they are read in this browser and attached to your next message. " +
-        "A file that looks like it holds a credential is refused."));
+        "No repositories connected. Open Settings and add one as owner/name — " +
+        "public repositories need no token."));
       return;
     }
 
-    let entries = [];
-    try { entries = await backend.listFiles(); }
-    catch (err) { panel.append(el("div", "empty", err.message)); return; }
+    for (const repo of repos) {
+      const header = el("div", "row dir");
+      const open = openRepos.has(repo.label);
+      header.append(el("div", "name", (open ? "▾ " : "▸ ") + repo.slug));
+      header.append(el("div", "meta", repo.ref));
+      header.style.cursor = "pointer";
+      header.title = "Show the files in " + repo.label;
+      header.addEventListener("click", () => {
+        if (openRepos.has(repo.label)) openRepos.delete(repo.label);
+        else openRepos.add(repo.label);
+        refreshFiles();
+      });
+      panel.append(header);
 
-    entries.forEach((entry) => {
-      const depth = entry.path.split("/").length - 1;
-      const row = el("div", "row" + (entry.is_dir ? " dir" : ""));
-      row.style.paddingLeft = 7 + depth * 11 + "px";
-      row.append(el("div", "name", entry.path.split("/").pop()));
-      if (!entry.is_dir) {
+      if (!open) continue;
+
+      const loading = el("div", "empty", "loading…");
+      panel.append(loading);
+      let entries = [];
+      try {
+        entries = await backend.repoTree(repo);
+      } catch (err) {
+        if (!current()) return;
+        loading.textContent = err.message;
+        continue;
+      }
+      if (!current()) return;
+      loading.remove();
+      if (!entries.length) {
+        panel.append(el("div", "empty", "nothing attachable in this repository"));
+        continue;
+      }
+      entries.forEach((entry) => {
+        const row = el("div", "row");
+        row.style.paddingLeft = "18px";
+        row.append(el("div", "name", entry.path));
         row.append(el("div", "meta", entry.size > 1024
           ? Math.round(entry.size / 1024) + " kB" : entry.size + " B"));
-        row.addEventListener("click", () => attachFile(entry.path));
-        row.title = "Attach " + entry.path;
-      }
-      panel.append(row);
-    });
+        row.title = "Attach " + repo.slug + " ▸ " + entry.path;
+        row.addEventListener("click", () => attachRepoFile(repo, entry.path));
+        panel.append(row);
+      });
+    }
+  }
+
+  // Attachments carry their repository in the name, so a conversation about two
+  // projects never leaves it unclear which file came from where.
+  async function attachRepoFile(repo, path) {
+    const label = repo.slug + " ▸ " + path;
+    if (attached.some((file) => file.path === label)) return;
+    try {
+      const data = await backend.repoFile(repo, path);
+      attached.push({ path: label, text: data.text, repo: repo.label, file: path });
+      renderChips();
+    } catch (err) {
+      showError("thread", err.message);
+    }
   }
 
   async function attachFile(path) {
@@ -1022,12 +1443,44 @@
     $("apikey").value = "";
     showNote("thread", "The key was removed from this browser. Revoke it at your provider as well if it may have been seen.");
   });
+  // A "change" event fires when the field loses focus, which is exactly what
+  // tapping a repository in the sidebar does -- and rebuilding the sidebar
+  // right then takes the row out from under the finger, so the first tap does
+  // nothing and the second works. Re-rendering only when the list really
+  // changed keeps that from happening.
+  let lastRepoSignature = null;
+
+  function repoListChanged() {
+    const signature = connectedRepos().map((repo) => repo.label).join("\n");
+    if (signature === lastRepoSignature) return false;
+    lastRepoSignature = signature;
+    return true;
+  }
+
+  $("ghrepos").addEventListener("change", () => {
+    store.set("repos", $("ghrepos").value);
+    if (repoListChanged()) refreshFiles();
+  });
+  $("ghtoken").addEventListener("change", () => {
+    store.set("ghToken", $("ghtoken").value.trim());
+    config.can_change_github = Boolean($("ghtoken").value.trim());
+  });
+  $("forget-ghtoken").addEventListener("click", () => {
+    store.set("ghToken", "");
+    $("ghtoken").value = "";
+    config.can_change_github = false;
+    showNote("thread", "The GitHub token was removed from this browser. " +
+      "Revoke it on GitHub as well if it may have been seen.");
+  });
   $("filepicker").addEventListener("change", (event) => {
     attachPickedFiles(event.target.files);
     event.target.value = "";  // so choosing the same file again still fires
   });
 
   $("system").value = store.get("system", "");
+  $("ghrepos").value = store.get("repos", "");
+  lastRepoSignature = null;  // set for real once the backend is known
+  $("ghtoken").value = store.get("ghToken", "");
   $("temperature").value = store.get("temperature", "0.2");
   $("maxtokens").value = store.get("maxtokens", "4096");
   if (store.get("sidebar", "shown") === "hidden") $("sidebar").classList.add("hidden");
@@ -1063,6 +1516,12 @@
     // Only prefill when nothing was ever saved. An edited prompt has to survive
     // a reload -- overwriting it would throw the edit away silently.
     if (store.get("system", null) === null) $("system").value = defaultSystemPrompt;
+
+    if (store.get("repos", null) === null && (config.github_repos || []).length) {
+      $("ghrepos").value = config.github_repos.join("\n");
+      store.set("repos", $("ghrepos").value);
+    }
+    repoListChanged();  // record what is there now, so a blur alone is not a change
 
     $("intro-key").textContent = backend.mode === "static"
       ? "There is no server here, so this page talks to your provider directly and your API key is kept in this browser. Open Settings to enter it."

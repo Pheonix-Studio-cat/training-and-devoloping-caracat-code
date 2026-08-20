@@ -18,6 +18,7 @@ Any OpenAI-compatible endpoint works, including local runtimes:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -31,6 +32,7 @@ from caracat_code.conversations import (  # noqa: E402
     ConversationStore,
     default_store_path,
 )
+from caracat_code.github import GitHubError, parse_repo  # noqa: E402
 from caracat_code.interface import (  # noqa: E402
     DEFAULT_API_BASE,
     DEFAULT_HOST,
@@ -101,6 +103,19 @@ def build_parser() -> argparse.ArgumentParser:
             "everything else is scanned before it is sent anywhere."
         ),
     )
+    github = parser.add_argument_group("github")
+    github.add_argument(
+        "--github-repo",
+        action="append",
+        default=[],
+        metavar="OWNER/NAME[@BRANCH]",
+        help=(
+            "A public repository Caracat Code may read. Give the flag more "
+            "than once for more than one -- two is the case this was built "
+            "for. Reading needs no token."
+        ),
+    )
+
     saving = parser.add_argument_group("conversations")
     saving.add_argument(
         "--conversations-dir",
@@ -161,12 +176,25 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
 
+    try:
+        repos = tuple(parse_repo(spec) for spec in args.github_repo)
+    except GitHubError as exc:
+        print(f"Cannot start:\n\n{exc}", file=sys.stderr)
+        return 2
+
+    # Read from the environment, never from a flag: a token on a command line
+    # ends up in the shell history and in the process list, exactly like the
+    # API key. Absent means read-only, which is a fine state to run in.
+    github_token = os.environ.get("CARACAT_GITHUB_TOKEN", "").strip()
+
     options = ServerOptions(
         config=config,
         index_html=index_html,
         system_prompt=system_prompt,
         workspace=workspace,
         conversations=conversations,
+        github_repos=repos,
+        github_token=github_token,
     )
 
     if not config.is_local_only:
@@ -187,6 +215,9 @@ def main(argv: list[str] | None = None) -> int:
         f"Project:     {workspace.root if workspace else '(none, use --project-dir)'}"
     )
     print(f"Saved chats: {conversations.root if conversations else '(off)'}")
+    if repos:
+        changing = "read and propose changes" if github_token else "read only"
+        print(f"GitHub:      {', '.join(str(r) for r in repos)} ({changing})")
     print("Press Ctrl+C to stop.")
 
     try:
