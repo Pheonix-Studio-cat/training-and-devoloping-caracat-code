@@ -41,7 +41,7 @@ from caracat_code.interface import (  # noqa: E402
     resolve_config,
 )
 from caracat_code.persona import (  # noqa: E402
-    DEFAULT_PERSONA_PATH,
+    PERSONA_FILES,
     PersonaError,
     load_persona,
 )
@@ -84,8 +84,13 @@ def build_parser() -> argparse.ArgumentParser:
     persona = parser.add_argument_group("personality")
     persona.add_argument(
         "--persona",
-        type=Path,
-        help=f"Personality file to load (default: {DEFAULT_PERSONA_PATH}).",
+        default=None,
+        metavar="NAME_OR_FILE",
+        help=(
+            "Which personality the conversation starts with: "
+            + " or ".join(sorted(PERSONA_FILES))
+            + " (default: code), or a path to a file of your own."
+        ),
     )
     persona.add_argument(
         "--no-persona",
@@ -147,12 +152,26 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     system_prompt: str | None = None
+    personas: dict[str, str] = {}
     if not args.no_persona:
         try:
             system_prompt = load_persona(args.persona)
         except PersonaError as exc:
             print(f"Cannot start the interface:\n\n{exc}", file=sys.stderr)
             return 2
+
+        # Both shipped personalities travel to the page, so it can offer either
+        # without another round trip. One that fails to load is left out rather
+        # than taking the whole interface down with it -- the other still works,
+        # and the page simply does not offer the missing one.
+        for name in PERSONA_FILES:
+            try:
+                personas[name] = load_persona(name)
+            except PersonaError as exc:
+                print(
+                    f"Note: the {name} personality is unavailable: {exc}",
+                    file=sys.stderr,
+                )
 
     workspace: Workspace | None = None
     if args.project_dir is not None:
@@ -191,6 +210,7 @@ def main(argv: list[str] | None = None) -> int:
         config=config,
         index_html=index_html,
         system_prompt=system_prompt,
+        personas=personas,
         workspace=workspace,
         conversations=conversations,
         github_repos=repos,

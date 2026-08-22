@@ -24,6 +24,26 @@ redistribution of that material, including redistribution in modified form, as
 required by the Apache License 2.0.
 
 ================================================================================
+Second assistant: Caracat AI
+================================================================================
+
+Caracat AI is based on gpt-oss-20b by OpenAI.
+
+    Upstream model    openai/gpt-oss-20b
+    Upstream URL      https://huggingface.co/openai/gpt-oss-20b
+    Upstream license  Not established. See THIRD_PARTY_LICENSES.md; this
+                      statement is deliberately absent rather than guessed.
+
+Caracat AI is a personality and an interface over that model. It was not
+trained, fine-tuned or otherwise derived from it -- there are no Caracat
+weights. Any copyright, license, NOTICE and attribution material distributed
+with the upstream model must be preserved wherever that material is
+redistributed.
+
+Caracat AI is a different assistant from Caracat Code and rests on a different
+base model. Neither name may be used for the other.
+
+================================================================================
 Scope of this NOTICE
 ================================================================================
 
@@ -32,7 +52,8 @@ original source code authored for this project (training tooling, evaluation
 tooling, configuration and documentation in this repository).
 
 It does not, by itself, grant any rights in the upstream model weights. Those
-remain governed by the license under which Qwen distributes them.
+remain governed by the licenses under which Qwen and OpenAI distribute them,
+respectively.
 
 Third-party components and their licenses are listed in
 THIRD_PARTY_LICENSES.md.

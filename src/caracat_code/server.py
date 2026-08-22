@@ -23,7 +23,7 @@ import sys
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -73,6 +73,12 @@ class ServerOptions:
     config: InterfaceConfig
     index_html: bytes
     system_prompt: str | None = None
+    personas: dict[str, str] = field(default_factory=dict)
+    """The shipped personalities by name, so the page can offer both.
+
+    ``system_prompt`` stays what the conversation starts with; this is the set
+    the "reset" buttons draw from. A personality that failed to load is simply
+    absent, and the page then does not offer it."""
     workspace: Workspace | None = None
     conversations: ConversationStore | None = None
     github_repos: tuple[RepoRef, ...] = ()
@@ -91,6 +97,7 @@ def public_config(options: ServerOptions) -> dict[str, object]:
     return {
         **options.config.public_settings(),
         "default_system_prompt": options.system_prompt,
+        "personas": options.personas,
         "project_dir": str(options.workspace.root) if options.workspace else None,
         "can_run_code": options.config.is_local_only,
         "can_save_conversations": options.conversations is not None,
