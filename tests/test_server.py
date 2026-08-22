@@ -243,7 +243,11 @@ def test_the_page_wires_up_the_personality() -> None:
     page = INDEX_PATH.read_text(encoding="utf-8")
 
     assert "default_system_prompt" in page
-    assert "reset-system" in page
+    # One button per shipped assistant, where there used to be a single
+    # "reset" -- the page offers two personalities, not two moods of one.
+    assert "persona-code" in page
+    assert "persona-chat" in page
+    assert "config.personas" in page
     # The guard that stops a reload from throwing away an edited prompt.
     assert 'store.get("system", null)' in page
 

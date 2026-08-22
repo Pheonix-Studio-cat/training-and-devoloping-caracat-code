@@ -38,6 +38,34 @@ in `NOTICE`.
 
 ---
 
+## Second base model — Caracat AI
+
+Caracat AI is a *second assistant* in this project: a personality and an
+interface over a different base model. There are no Caracat weights for it
+either.
+
+| Component | Source | License | Commercial use | Modification | Redistribution | Attribution required | Verification |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| gpt-oss-20b | `openai/gpt-oss-20b` on Hugging Face | **Not established here** | Unknown | Unknown | Unknown | Unknown | ⚠️ **Requires verification** |
+
+**Status detail:** nothing about this model's license has been read from a
+primary source, and nothing is asserted about it here. The environment in which
+this file was written cannot reach `huggingface.co`, and a license is not
+something to fill in from memory.
+
+**Before relying on this model for anything that matters**, open
+<https://huggingface.co/openai/gpt-oss-20b>, read the `license` field and any
+`LICENSE` file in that repository, and replace the row above with what it
+actually says — including whether commercial use is permitted and what
+attribution is required. Then set the marker to ✅ Verified with the date.
+
+**What is already true regardless of the outcome:** this repository ships no
+weights for this model either. It sends requests to an inference provider that
+serves it. If the license turns out to restrict the use this project makes of
+it, the fix is to stop offering Caracat AI — not to rewrite this row.
+
+---
+
 ## GitHub Actions used in CI
 
 | Component | Source | License | Verification |

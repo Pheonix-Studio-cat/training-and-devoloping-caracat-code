@@ -2,10 +2,10 @@ name: Sync Caracat Code to a Hugging Face Space
 
 # Publishes the hosted interface to a Hugging Face **static** Space.
 #
-# A static Space serves files and runs nothing. That is the whole design: three
-# files go up -- the page, the personality it reads, and the Space's own README
-# with its front matter. No Python is published, because there would be nothing
-# to run it.
+# A static Space serves files and runs nothing. That is the whole design: four
+# files go up -- the page, the two personalities it reads, and the Space's own
+# README with its front matter. No Python is published, because there would be
+# nothing to run it.
 #
 # The page detects at startup that no server answered and talks to the provider
 # directly, with the key held in the visitor's browser. src/ is deliberately
@@ -88,6 +88,7 @@ jobs:
           cp space/README.md space-build/README.md
           cp interface/index.html space-build/index.html
           cp prompts/caracat_persona.md space-build/caracat_persona.md
+          cp prompts/caracat_ai_persona.md space-build/caracat_ai_persona.md
 
       - name: Show what will be published
         run: |

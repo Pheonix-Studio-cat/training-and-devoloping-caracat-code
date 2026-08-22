@@ -120,6 +120,8 @@
   .chip { display: flex; align-items: center; gap: 5px; font-size: 12px; background: var(--sunk);
     border: 1px solid var(--border); border-radius: 20px; padding: 2px 4px 2px 10px; color: var(--muted); }
   .hint { max-width: 1400px; margin: 6px auto 0; font-size: 11.5px; color: var(--muted); }
+  .personas { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .personas .hint { margin: 0; }
   .notice { max-width: 820px; margin: 0 auto 16px; border: 1px solid var(--border);
     border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 11px 13px;
     font-size: 13.5px; color: var(--muted); }
@@ -149,9 +151,13 @@
 
 <div id="settings">
   <div class="field grow">
-    <label for="system">System prompt &middot; the personality, from prompts/caracat_persona.md</label>
+    <label for="system">System prompt &middot; the personality, from <code>prompts/</code></label>
     <textarea id="system" spellcheck="false"></textarea>
-    <button id="reset-system" class="small">Reset to the shipped personality</button>
+    <div class="personas">
+      <span class="hint">Load a shipped personality:</span>
+      <button id="persona-code" class="small" hidden>Caracat Code</button>
+      <button id="persona-chat" class="small" hidden>Caracat AI</button>
+    </div>
   </div>
   <div class="field">
     <label for="temperature">Temperature</label>
@@ -255,6 +261,7 @@
   let controllers = [];
   let allModels = [];
   let defaultSystemPrompt = "";
+  let shippedPersonas = {};   // {code, chat} -- whichever actually loaded
   let attached = [];        // {path, text}
   let modelLoadError = "";  // why the list is empty, if it is
   let conversationId = null;
@@ -608,14 +615,25 @@
     },
 
     async config() {
-      let persona = "";
-      // Shipped beside index.html, so it is the same file the repository holds.
-      try { persona = await (await fetch("caracat_persona.md")).text(); }
-      catch (err) { persona = ""; }
+      // Shipped beside index.html, so these are the same files the repository
+      // holds. One that is missing is left out rather than failing the load --
+      // the other personality still works, and the page hides the button for
+      // the one that did not arrive.
+      const personas = {};
+      await Promise.all(Object.entries({
+        code: "caracat_persona.md",
+        chat: "caracat_ai_persona.md",
+      }).map(async ([name, file]) => {
+        try {
+          const text = (await (await fetch(file)).text()).trim();
+          if (text) personas[name] = text;
+        } catch (err) { /* left out */ }
+      }));
       return {
         api_base: this.endpoint(),
         default_model: "",
-        default_system_prompt: persona.trim(),
+        default_system_prompt: personas.code || "",
+        personas: personas,
         project_dir: null,
         can_run_code: false,          // no server, nothing to run code on
         can_browse_project: false,    // no server, no directory to browse
@@ -1423,9 +1441,15 @@
   $("system").addEventListener("change", () => store.set("system", $("system").value));
   $("temperature").addEventListener("change", () => store.set("temperature", $("temperature").value));
   $("maxtokens").addEventListener("change", () => store.set("maxtokens", $("maxtokens").value));
-  $("reset-system").addEventListener("click", () => {
-    $("system").value = defaultSystemPrompt;
-    store.set("system", defaultSystemPrompt);
+  // One button per shipped personality. They are two different assistants on
+  // two different base models, not two moods of one -- each file says which
+  // model it belongs to, so switching the text switches the whole identity.
+  [["persona-code", "code"], ["persona-chat", "chat"]].forEach(([id, name]) => {
+    $(id).addEventListener("click", () => {
+      const text = shippedPersonas[name] || "";
+      $("system").value = text;
+      store.set("system", text);
+    });
   });
 
   $("apibase").addEventListener("change", () => {
@@ -1513,6 +1537,12 @@
 
     $("provider").textContent = config.api_base;
     defaultSystemPrompt = config.default_system_prompt || "";
+    shippedPersonas = config.personas || {};
+    // A personality that did not load gets no button, rather than a
+    // button that quietly empties the box when pressed.
+    [["persona-code", "code"], ["persona-chat", "chat"]].forEach(([id, name]) => {
+      $(id).hidden = !shippedPersonas[name];
+    });
     // Only prefill when nothing was ever saved. An edited prompt has to survive
     // a reload -- overwriting it would throw the edit away silently.
     if (store.get("system", null) === null) $("system").value = defaultSystemPrompt;
