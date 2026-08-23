@@ -117,7 +117,7 @@ to describe: no weights, no training, no evaluation — it is a personality file
 and an interface over someone else's model.
 
 It is **not** a mode of Caracat Code, and nothing in this card applies to it.
-Its licence position is unsettled; see `THIRD_PARTY_LICENSES.md`.
+Its base model is Apache-2.0; see `THIRD_PARTY_LICENSES.md`.
 
 ## Attribution
 

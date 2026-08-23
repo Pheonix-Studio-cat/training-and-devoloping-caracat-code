@@ -31,14 +31,16 @@ Caracat AI is based on gpt-oss-20b by OpenAI.
 
     Upstream model    openai/gpt-oss-20b
     Upstream URL      https://huggingface.co/openai/gpt-oss-20b
-    Upstream license  Not established. See THIRD_PARTY_LICENSES.md; this
-                      statement is deliberately absent rather than guessed.
+    Upstream license  Apache License 2.0, as shown on the Hugging Face model
+                      page. See THIRD_PARTY_LICENSES.md for how this was
+                      verified.
 
 Caracat AI is a personality and an interface over that model. It was not
 trained, fine-tuned or otherwise derived from it -- there are no Caracat
-weights. Any copyright, license, NOTICE and attribution material distributed
-with the upstream model must be preserved wherever that material is
-redistributed.
+weights. Any copyright notices, license notices, NOTICE files and attribution
+information distributed with the upstream model must be preserved in every
+redistribution of that material, including redistribution in modified form, as
+required by the Apache License 2.0.
 
 Caracat AI is a different assistant from Caracat Code and rests on a different
 base model. Neither name may be used for the other.

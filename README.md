@@ -202,10 +202,9 @@ Their shared first rule is the one that matters most: **ask instead of
 guessing**. `--persona chat` starts the local interface with Caracat AI; the
 buttons under the system prompt switch between them.
 
-**Caracat AI's licence position is not settled.** `openai/gpt-oss-20b` is
-recorded in `THIRD_PARTY_LICENSES.md` as ⚠️ *requires verification*, because the
-model page has not been read from a primary source. Read it before relying on
-Caracat AI for anything that matters.
+Both base models are reported as Apache-2.0; `THIRD_PARTY_LICENSES.md` records
+how far each has actually been verified, and by whom. `openai/gpt-oss-20b` was
+read from its model page on 2026-08-23; the Qwen row is still ⚠️.
 
 #### Working with GitHub
 

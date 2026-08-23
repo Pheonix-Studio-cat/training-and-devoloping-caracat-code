@@ -38,10 +38,14 @@ name or its attribution.
 Caracat Code to OpenAI. Neither has its own weights: both are a personality and
 an interface over someone else's model.
 
-**Its licence is not settled.** `THIRD_PARTY_LICENSES.md` records
-`openai/gpt-oss-20b` as ⚠️ *requires verification* — nothing about its terms has
-been read from a primary source. Do not state its licence, and do not describe
-Caracat AI as commercially usable, until that row says otherwise.
+Its base model is **Apache-2.0**, read from the model page on 2026-08-23 and
+recorded in `THIRD_PARTY_LICENSES.md`. The same obligations apply as for
+Qwen3-Coder-Next: keep the licence text, retain upstream copyright,
+attribution and NOTICE content, state where files were modified.
+
+That settles one component, not the whole. `Qwen/Qwen3-Coder-Next` is still
+⚠️ — so the rule in section 2 stands: never claim that all of Caracat Code is
+commercially usable as a blanket statement.
 
 Priority order when two goals conflict: correctness → security → stability →
 code quality → maintainability → model quality → documentation → licensing

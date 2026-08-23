@@ -46,23 +46,26 @@ either.
 
 | Component | Source | License | Commercial use | Modification | Redistribution | Attribution required | Verification |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| gpt-oss-20b | `openai/gpt-oss-20b` on Hugging Face | **Not established here** | Unknown | Unknown | Unknown | Unknown | ⚠️ **Requires verification** |
+| gpt-oss-20b | `openai/gpt-oss-20b` on Hugging Face | Apache-2.0 | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Yes — §4(a)–(d) | ✅ Verified 2026-08-23 |
 
-**Status detail:** nothing about this model's license has been read from a
-primary source, and nothing is asserted about it here. The environment in which
-this file was written cannot reach `huggingface.co`, and a license is not
-something to fill in from memory.
+**How this was verified:** the project owner opened
+<https://huggingface.co/openai/gpt-oss-20b> on 2026-08-23 and read the model
+page's own `license` field, which shows `apache-2.0`. That is the primary
+source. It was *not* retrieved by this project's tooling — `huggingface.co` is
+blocked by the network egress proxy of the environment this file is written in
+— and the route matters enough to record, so the row claims exactly as much as
+was actually checked.
 
-**Before relying on this model for anything that matters**, open
-<https://huggingface.co/openai/gpt-oss-20b>, read the `license` field and any
-`LICENSE` file in that repository, and replace the row above with what it
-actually says — including whether commercial use is permitted and what
-attribution is required. Then set the marker to ✅ Verified with the date.
+**Obligations that follow.** Apache-2.0 permits commercial use, modification
+and redistribution, and requires attribution: keep the license text, retain
+upstream copyright, attribution and NOTICE content, and state where files have
+been modified. `NOTICE` reflects this.
 
-**What is already true regardless of the outcome:** this repository ships no
-weights for this model either. It sends requests to an inference provider that
-serves it. If the license turns out to restrict the use this project makes of
-it, the fix is to stop offering Caracat AI — not to rewrite this row.
+**What this repository ships:** no weights for this model. It sends requests to
+an inference provider that serves it, so §4's redistribution obligations bite
+on the provider's copy, not on anything here. They *do* bite on any copy of the
+model made elsewhere — a duplicate under another account is a redistribution
+and has to carry the upstream `LICENSE` and `NOTICE` unchanged.
 
 ---
 
