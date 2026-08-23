@@ -27,6 +27,22 @@ debugging, refactoring, optimization and coding-agent workflows.
 **Never say** or imply that it was created independently of Qwen, or trained
 from scratch.
 
+### The second assistant
+
+**Caracat AI** is a general assistant on a different base model,
+`openai/gpt-oss-20b`. It is not a mode of Caracat Code and does not share its
+name or its attribution.
+
+**Always say:** "Caracat AI is based on gpt-oss-20b by OpenAI."
+**Never** call it Caracat Code, never attribute it to Qwen, and never attribute
+Caracat Code to OpenAI. Neither has its own weights: both are a personality and
+an interface over someone else's model.
+
+**Its licence is not settled.** `THIRD_PARTY_LICENSES.md` records
+`openai/gpt-oss-20b` as ⚠️ *requires verification* — nothing about its terms has
+been read from a primary source. Do not state its licence, and do not describe
+Caracat AI as commercially usable, until that row says otherwise.
+
 Priority order when two goals conflict: correctness → security → stability →
 code quality → maintainability → model quality → documentation → licensing
 compliance → reproducibility → developer experience. Never trade away security
@@ -144,8 +160,8 @@ Keep the Hugging Face model card (`hf/README.md`) accurate and consistent with
 
 A second workflow, `.github/workflows/sync-to-space.yml`, publishes the hosted
 interface to a **static** Space: three files, assembled at build time —
-`interface/index.html`, `prompts/caracat_persona.md` and `space/README.md`. No
-second copy is kept in git, so the personality and the page have one source. The
+`interface/index.html`, both files in `prompts/` and `space/README.md`. No
+second copy is kept in git, so each personality and the page have one source. The
 target Space is the repository variable `HF_SPACE_REPO_ID`, not a value written
 into the workflow.
 
@@ -231,7 +247,7 @@ docs/FINETUNING.md        worksheet to complete before a training run
 hf/                       exactly what is published to the HF model repo
 space/                    front matter and README for the static HF Space
 interface/                the interface page — one file, two modes
-prompts/                  the personality, as an editable file
+prompts/                  the two personalities, as editable files
 src/caracat_code/         project library (config, dataset gate, data prep, eval
                           recorder, interface, server, workspace, sandbox,
                           conversations, fetch, github, persona)

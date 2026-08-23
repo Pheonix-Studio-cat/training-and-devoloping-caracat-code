@@ -109,12 +109,26 @@ untrusted until reviewed.
 - Keep humans in the loop for anything that touches production systems, user
   data or money.
 
+## What this card does not cover: Caracat AI
+
+The project also offers **Caracat AI**, a general assistant on a different base
+model, `openai/gpt-oss-20b`. It has no card of its own because there is nothing
+to describe: no weights, no training, no evaluation — it is a personality file
+and an interface over someone else's model.
+
+It is **not** a mode of Caracat Code, and nothing in this card applies to it.
+Its licence position is unsettled; see `THIRD_PARTY_LICENSES.md`.
+
 ## Attribution
 
 If you use or redistribute Caracat Code, preserve the attribution in `NOTICE`
 and the license in `LICENSE`, and keep the reference to the upstream model:
 
 > Caracat Code is based on Qwen3-Coder-Next by Qwen.
+
+For the other assistant, the corresponding sentence is:
+
+> Caracat AI is based on gpt-oss-20b by OpenAI.
 
 ## Contact
 

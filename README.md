@@ -73,7 +73,7 @@ docs/FINETUNING.md        worksheet to complete before a training run
 hf/                       exactly what is published to the HF model repo
 space/                    front matter and README for the static HF Space
 interface/                the interface page — the same file in both modes
-prompts/                  the personality, as an editable file
+prompts/                  the two personalities, as editable files
 src/caracat_code/         project library
 scripts/                  train.py, evaluate.py, prepare_dataset.py, serve_interface.py
 configs/                  example training configurations and dataset
@@ -183,9 +183,29 @@ What it can do beyond chatting:
 | **Read GitHub repositories** | `--github-repo owner/name`, more than once for more than one |
 | **Propose changes as pull requests** | a `Propose…` button on any block the model marks with a file |
 
-The personality lives in [`prompts/caracat_persona.md`](prompts/caracat_persona.md) —
-an ordinary text file. Edit a line, reload the page, and the behaviour changes.
-Its first rule is the one that matters most: **ask instead of guessing**.
+#### Two assistants
+
+There are two, and they are two different assistants rather than two moods of
+one — different base models, different scope, different names:
+
+| | Base model | For |
+| --- | --- | --- |
+| **Caracat Code** | Qwen3-Coder-Next by Qwen | programming, and nothing else |
+| **Caracat AI** | gpt-oss-20b by OpenAI | everything else |
+
+Each personality is an ordinary text file in [`prompts/`](prompts/) — edit a
+line, reload the page, and the behaviour changes. Each one states in its own
+text which model it is based on, so the assistant answers that question
+correctly without the interface having to tell it.
+
+Their shared first rule is the one that matters most: **ask instead of
+guessing**. `--persona chat` starts the local interface with Caracat AI; the
+buttons under the system prompt switch between them.
+
+**Caracat AI's licence position is not settled.** `openai/gpt-oss-20b` is
+recorded in `THIRD_PARTY_LICENSES.md` as ⚠️ *requires verification*, because the
+model page has not been read from a primary source. Read it before relying on
+Caracat AI for anything that matters.
 
 #### Working with GitHub
 
@@ -312,13 +332,13 @@ no server.
    unless you mean to share the page.
 2. Add the Space's id (for example `Chinook416/caracat-code`) as the repository
    variable `HF_SPACE_REPO_ID` in this GitHub repository.
-3. Push to `main`. `.github/workflows/sync-to-space.yml` publishes three files:
-   the page, the personality it reads, and the Space's README.
+3. Push to `main`. `.github/workflows/sync-to-space.yml` publishes four files:
+   the page, the two personalities it reads, and the Space's README.
 4. Open the page and paste your provider key into *Settings*.
 
 There is no Space secret, because a static Space runs nothing that could hold
 one. Nothing is duplicated in git either — the workflow copies
-`interface/index.html` and `prompts/caracat_persona.md` at build time, so the
+`interface/index.html` and both files from `prompts/` at build time, so each
 personality still has exactly one source.
 
 #### What changes without a server
