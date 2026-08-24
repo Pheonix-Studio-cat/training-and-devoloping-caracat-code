@@ -1,0 +1,49 @@
+Caracat AI
+Copyright 2026 Caracat Code Project
+
+This product includes software developed by the Caracat Code Project.
+
+================================================================================
+Base model attribution
+================================================================================
+
+Caracat AI is based on gpt-oss-20b by OpenAI.
+
+    Upstream model    openai/gpt-oss-20b
+    Upstream URL      https://huggingface.co/openai/gpt-oss-20b
+    Upstream license  Apache License 2.0, as shown on the Hugging Face model
+                      page and read from it on 2026-08-23.
+
+Caracat AI was not trained, fine-tuned or otherwise derived from the upstream
+model. It is a personality and an interface over it, and there are no Caracat
+weights.
+
+Any copyright notices, license notices, NOTICE files and attribution
+information distributed with the upstream model must be preserved in every
+redistribution of that material, including redistribution in modified form, as
+required by the Apache License 2.0.
+
+================================================================================
+The other assistant
+================================================================================
+
+Caracat Code is a different assistant on a different base model:
+
+    Caracat Code is based on Qwen3-Coder-Next by Qwen.
+
+Neither name may be used for the other, and neither may be attributed to the
+other's creator.
+
+================================================================================
+Scope of this NOTICE
+================================================================================
+
+The Apache License 2.0 in the LICENSE file of this repository applies to the
+original material authored for this project -- the personality, the interface
+and this documentation.
+
+It does not, by itself, grant any rights in the upstream model weights. Those
+remain governed by the license under which OpenAI distributes them.
+
+Third-party components and their licenses are listed in
+THIRD_PARTY_LICENSES.md in the GitHub repository.

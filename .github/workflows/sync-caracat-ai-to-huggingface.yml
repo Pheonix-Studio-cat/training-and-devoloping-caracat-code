@@ -1,0 +1,116 @@
+name: Sync Caracat AI to Hugging Face
+
+# Publishes the contents of hf-ai/ -- and only hf-ai/ -- to the Hugging Face
+# model repository for Caracat AI.
+#
+# There are two model repositories because there are two assistants on two
+# different base models. Publishing both from one directory would put one
+# model's attribution on the other's card, which is the single thing this
+# project's rules forbid most plainly.
+#
+# huggingface/hub-sync mirrors what it is pointed at, deletions included:
+# anything added to hf-ai/ becomes public on the next push to main, and
+# anything removed from it is removed from the Hub. Scoping the sync to that
+# directory makes the upload an explicit allowlist rather than an opt-out.
+#
+# **The target is a repository variable, not a name in this file.** The Space
+# workflow taught that lesson: a target written into a workflow needs a commit
+# to change, and the first attempt at a name is rarely the last.
+#
+#   Settings > Secrets and variables > Actions > Variables > HF_AI_REPO_ID
+#   for example: Chinook416/caracat-ai-karakal-2.0-pro
+#
+# Nothing runs without HF_TOKEN, and nothing outside hf-ai/ is uploaded.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "hf-ai/**"
+      - ".github/workflows/sync-caracat-ai-to-huggingface.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: huggingface-ai-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    # Forks have no secrets and must not publish.
+    if: github.repository == 'Pheonix-Studio-cat/training-and-devoloping-caracat-code'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Verify the secret and the target are configured
+        id: target
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          AI_REPO_ID: ${{ vars.HF_AI_REPO_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN}" ]; then
+            echo "::error::The HF_TOKEN repository secret is not set. Add a Hugging Face access token with write permission for the target model repository under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          # A value typed into the web form can pick up a trailing newline, and
+          # the Hub then rejects the id with the newline attached -- a failure
+          # whose cause is invisible in the form that caused it. This exact
+          # thing cost an afternoon when the Space was set up.
+          repo_id="$(printf '%s' "${AI_REPO_ID}" | tr -d '[:space:]')"
+          if [ -z "${repo_id}" ]; then
+            echo "::error::The HF_AI_REPO_ID repository variable is not set. Create the model repository on Hugging Face first, then add its id (for example Chinook416/caracat-ai-karakal-2.0-pro) under Settings > Secrets and variables > Actions > Variables."
+            exit 1
+          fi
+          case "${repo_id}" in
+            */*/*|/*|*/) echo "::error::HF_AI_REPO_ID should look like owner/model-name, but it is '${repo_id}'."; exit 1 ;;
+            */*) : ;;
+            *) echo "::error::HF_AI_REPO_ID should look like owner/model-name, but it is '${repo_id}'."; exit 1 ;;
+          esac
+          echo "repo_id=${repo_id}" >> "$GITHUB_OUTPUT"
+          echo "Secret and target are configured: ${repo_id}"
+
+      - name: Check out the repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Show what will be published
+        run: |
+          echo "The following files will be mirrored to ${{ steps.target.outputs.repo_id }}:"
+          find hf-ai -type f | sort
+
+      - name: Refuse to publish anything that looks like weights
+        run: |
+          set -euo pipefail
+          # This repository documents an assistant; it does not distribute a
+          # model. A weight file appearing here would mean the card and the
+          # contents had drifted apart, and the card says plainly that there
+          # are none.
+          if find hf-ai -type f \( -name '*.safetensors' -o -name '*.bin' -o -name '*.pt' -o -name '*.pth' -o -name '*.gguf' -o -name '*.onnx' \) | grep .; then
+            echo "::error::hf-ai/ holds what looks like model weights, but its card states there are none. Nothing was published."
+            exit 1
+          fi
+          echo "No weight files present, as the card says."
+
+      - name: Refuse to publish anything credential-shaped
+        run: |
+          set -euo pipefail
+          # The model repository is public, and a key that reaches it cannot be
+          # recalled. Patterns only, never the value.
+          if grep -rIlE '(^|[^A-Za-z0-9])(sk-[A-Za-z0-9_-]{20,}|hf_[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,})' hf-ai; then
+            echo "::error::A file in the upload looks like it holds a credential. Nothing was published."
+            exit 1
+          fi
+          echo "No credential-shaped content found."
+
+      - name: Sync hf-ai/ to Hugging Face
+        uses: huggingface/hub-sync@6fbce0a787a7146710e588abe7a4fd5eca07f47c # v0.1.0
+        with:
+          github_repo_id: ${{ github.repository }}
+          huggingface_repo_id: ${{ steps.target.outputs.repo_id }}
+          hf_token: ${{ secrets.HF_TOKEN }}
+          repo_type: model
+          subdirectory: hf-ai
