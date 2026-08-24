@@ -43,9 +43,14 @@ recorded in `THIRD_PARTY_LICENSES.md`. The same obligations apply as for
 Qwen3-Coder-Next: keep the licence text, retain upstream copyright,
 attribution and NOTICE content, state where files were modified.
 
-That settles one component, not the whole. `Qwen/Qwen3-Coder-Next` is still
-⚠️ — so the rule in section 2 stands: never claim that all of Caracat Code is
-commercially usable as a blanket statement.
+As of 2026-08-23 **every component recorded in `THIRD_PARTY_LICENSES.md` is
+verified**, and each permits commercial use.
+
+The rule in section 2 still stands anyway: never claim that all of Caracat Code
+is commercially usable as a blanket statement. Not because a row is open, but
+because the file does not yet cover everything — **no dataset has been chosen
+and no fine-tune exists**. The claim becomes safe when the file covers the
+whole, not when the rows it happens to contain are all green.
 
 Priority order when two goals conflict: correctness → security → stability →
 code quality → maintainability → model quality → documentation → licensing

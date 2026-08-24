@@ -19,22 +19,26 @@ step is to read the primary source, not to assume.
 
 | Component | Source | License | Commercial use | Modification | Redistribution | Attribution required | Verification |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Qwen3-Coder-Next | `Qwen/Qwen3-Coder-Next` on Hugging Face | Apache-2.0 | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Yes — §4(a)–(d) | ⚠️ Confirmed by the project owner; primary source not yet read |
+| Qwen3-Coder-Next | `Qwen/Qwen3-Coder-Next` on Hugging Face | Apache-2.0 | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Yes — §4(a)–(d) | ✅ Verified 2026-08-23 |
 
-**Status detail:** the project owner confirmed Apache-2.0 on 2026-08-16, and
-secondary sources report the same. The upstream model page itself has not been
-read directly — the network egress proxy of the environment in which this file
-was written blocks `huggingface.co`.
+**How this was verified:** the project owner opened
+<https://huggingface.co/Qwen/Qwen3-Coder-Next> on 2026-08-23 and read the model
+page's own `license` field, which shows `apache-2.0`. That is the primary
+source.
 
-To close this out, open <https://huggingface.co/Qwen/Qwen3-Coder-Next>, read the
-`license` field and any `LICENSE` file in that repository, and change the marker
-to ✅ Verified with the date. That is a two-minute check and it is the only
-thing standing between this row and full verification.
+It was *not* retrieved by this project's tooling — the network egress proxy of
+the environment in which this file is written blocks `huggingface.co` — and the
+route is recorded because it is part of the claim. The row says a person read
+the primary source, not that a machine fetched it.
 
-**Obligations that follow if Apache-2.0 is confirmed:** keep the license text,
-retain all upstream copyright/attribution/NOTICE content, and state prominently
-that the files were modified where they have been. These are already reflected
-in `NOTICE`.
+Between 2026-08-16 and this date the row stood at ⚠️ on the owner's word alone.
+It was deliberately *not* closed while the neighbouring gpt-oss-20b row was
+being closed, because closing a row in passing is exactly what the markers
+exist to prevent.
+
+**Obligations that follow:** keep the license text, retain all upstream
+copyright/attribution/NOTICE content, and state prominently where files have
+been modified. These are reflected in `NOTICE`.
 
 ---
 
@@ -151,3 +155,25 @@ source, commercial-use flag and attribution flag. A dataset whose license is
 | Date | Change |
 | --- | --- |
 | 2026-08-16 | Initial version: base model, GitHub Actions, Python dependencies. |
+| 2026-08-23 | Added `openai/gpt-oss-20b` for Caracat AI, verified Apache-2.0 from the model page. |
+| 2026-08-23 | Closed the `Qwen/Qwen3-Coder-Next` row: Apache-2.0, read from the model page. Every component recorded in this file is now ✅. |
+
+## What is settled, and what is not
+
+**Every component recorded above is verified**, and each permits commercial use:
+Apache-2.0 for both base models and `hub-sync`, MIT for the rest.
+
+That is not the same as "Caracat Code is commercially usable", and the rule in
+`CLAUDE.md` §2 against saying so still holds. Two things are simply not in this
+file yet:
+
+- **No dataset has been chosen.** Section 5 of `CLAUDE.md` and the gate in
+  `src/caracat_code/datasets.py` mean an unknown-licence dataset cannot be used
+  at all — but until one is chosen and recorded here, a training run's licence
+  position is undetermined rather than clear.
+- **No fine-tune exists.** There are no Caracat weights; both assistants are a
+  personality over someone else's model. A fine-tune would add its own
+  components and its own questions.
+
+The blanket claim becomes safe when the file covers everything, not when the
+rows it happens to contain are all green.

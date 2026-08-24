@@ -202,9 +202,9 @@ Their shared first rule is the one that matters most: **ask instead of
 guessing**. `--persona chat` starts the local interface with Caracat AI; the
 buttons under the system prompt switch between them.
 
-Both base models are reported as Apache-2.0; `THIRD_PARTY_LICENSES.md` records
-how far each has actually been verified, and by whom. `openai/gpt-oss-20b` was
-read from its model page on 2026-08-23; the Qwen row is still ⚠️.
+Both base models are **Apache-2.0**, each read from its own model page on
+2026-08-23 and recorded in `THIRD_PARTY_LICENSES.md` together with how it was
+verified and by whom.
 
 #### Working with GitHub
 
