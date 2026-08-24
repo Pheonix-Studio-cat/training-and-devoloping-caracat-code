@@ -11,9 +11,9 @@ Caracat Code is based on Qwen3-Coder-Next by Qwen.
 
     Upstream model    Qwen/Qwen3-Coder-Next
     Upstream URL      https://huggingface.co/Qwen/Qwen3-Coder-Next
-    Upstream license  Apache License 2.0, as listed on the Hugging Face model
-                      page. See THIRD_PARTY_LICENSES.md for the current
-                      verification status of this statement.
+    Upstream license  Apache License 2.0, as shown on the Hugging Face model
+                      page. See THIRD_PARTY_LICENSES.md for how this was
+                      verified.
 
 Caracat Code was not trained from scratch. It derives from the upstream model
 named above.
