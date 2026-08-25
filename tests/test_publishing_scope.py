@@ -29,13 +29,74 @@ WORKFLOWS = Path(__file__).resolve().parent.parent / ".github" / "workflows"
 HF_SYNC = WORKFLOWS / "sync-to-huggingface.yml"
 SPACE_SYNC = WORKFLOWS / "sync-to-space.yml"
 
-ALLOWED_SUBDIRECTORIES = {"hf", "space-build"}
-"""The only two directories a sync step may be pointed at.
+ALLOWED_SUBDIRECTORIES = {"hf", "hf-ai", "space-build"}
+"""The only directories a sync step may be pointed at.
 
-``hf/`` is written by hand and holds exactly what the model repository should
-show. ``space-build/`` is assembled during the run from named files. Anything
-else -- ``.``, ``src``, a variable -- would publish the repository.
+``hf/`` and ``hf-ai/`` are written by hand and hold exactly what each model
+repository should show -- one per assistant, because putting both in one
+directory would put one model's attribution on the other's card.
+``space-build/`` is assembled during the run from named files.
+
+Anything else -- ``.``, ``src``, a variable -- would publish the repository.
+Adding an entry here is meant to be a decision someone makes on purpose.
 """
+
+
+def sync_workflows() -> list[Path]:
+    """Every workflow that mirrors anything to the Hub.
+
+    Found rather than listed. The first version of this file named two
+    workflows by hand, and when a third was added it sailed past every
+    assertion below -- the file stayed green while covering less than it looked
+    like it covered. A workflow that publishes is now caught by existing, not
+    by being remembered.
+    """
+    found = [
+        path
+        for path in sorted(WORKFLOWS.glob("*.yml"))
+        if "hub-sync" in path.read_text(encoding="utf-8")
+    ]
+    assert found, "no publishing workflow found; this file would prove nothing"
+    return found
+
+
+def test_every_publishing_workflow_is_covered_here() -> None:
+    # The guard on the guard. A new publishing workflow must be looked at, not
+    # merely swept in by a glob that nobody rereads.
+    assert {path.name for path in sync_workflows()} == {
+        "sync-to-huggingface.yml",
+        "sync-caracat-ai-to-huggingface.yml",
+        "sync-to-space.yml",
+    }
+
+
+def test_the_two_model_repositories_stay_apart() -> None:
+    """One directory per assistant, and neither carries the other's card.
+
+    Both model repositories are public. A card naming the wrong base model
+    would be this project's plainest rule broken in its most visible place.
+    """
+    root = WORKFLOWS.parent.parent
+
+    # Whitespace is collapsed and blockquote markers dropped first: these are
+    # claims about sentences, and a sentence that happens to wrap across two
+    # lines of a quoted block is the same sentence.
+    def flat(path: Path) -> str:
+        text = path.read_text(encoding="utf-8")
+        lines = [line.lstrip("> ").rstrip() for line in text.splitlines()]
+        return " ".join(" ".join(lines).split())
+
+    code_card = flat(root / "hf" / "README.md")
+    ai_card = flat(root / "hf-ai" / "README.md")
+
+    assert "Qwen3-Coder-Next" in code_card
+    assert "gpt-oss" not in code_card
+    assert "based on gpt-oss-20b by OpenAI" in ai_card
+    assert "Caracat AI is based on Qwen" not in ai_card
+
+    # Neither claims weights it does not have.
+    assert "no weights are published" in code_card.lower()
+    assert "no weights in this repository" in ai_card.lower()
 
 
 def sync_steps(workflow: Path) -> list[dict]:
@@ -49,7 +110,7 @@ def sync_steps(workflow: Path) -> list[dict]:
     return steps
 
 
-@pytest.mark.parametrize("workflow", [HF_SYNC, SPACE_SYNC], ids=lambda p: p.name)
+@pytest.mark.parametrize("workflow", sync_workflows(), ids=lambda p: p.name)
 def test_the_mirror_is_pointed_at_an_allowed_directory(workflow: Path) -> None:
     steps = sync_steps(workflow)
     assert steps, f"{workflow.name} has no sync step; this test would prove nothing"
@@ -81,18 +142,38 @@ def test_the_space_directory_is_filled_by_naming_files_not_by_globbing() -> None
         )
 
 
-def test_the_model_repository_sync_only_wakes_for_its_own_directory() -> None:
-    # `on: push: paths:` is not a security control -- workflow_dispatch exists
-    # -- but a sync that runs on every push is a sync nobody watches.
-    data = yaml.safe_load(HF_SYNC.read_text(encoding="utf-8"))
+@pytest.mark.parametrize("workflow", sync_workflows(), ids=lambda p: p.name)
+def test_a_sync_only_wakes_for_the_directory_it_publishes(workflow: Path) -> None:
+    """Each publishing workflow watches its own directory and no more.
+
+    `on: push: paths:` is not a security control -- `workflow_dispatch` exists
+    -- but a sync that runs on every push is a sync nobody watches, and one
+    that watches a directory it does not publish is a sync nobody can reason
+    about.
+
+    The directory is read from the workflow's own sync step rather than named
+    here, so a new workflow is held to this without anyone remembering to add
+    it. Naming it was how the AI workflow slipped past on its first day.
+    """
+    data = yaml.safe_load(workflow.read_text(encoding="utf-8"))
     # `on` is parsed as the boolean True by YAML 1.1, which is why this is not
     # simply data["on"].
     triggers = data[True] if True in data else data["on"]
     paths = triggers["push"]["paths"]
 
-    assert any(p.startswith("hf/") for p in paths)
+    published = {step["with"]["subdirectory"] for step in sync_steps(workflow)}
+    assert len(published) == 1, f"{workflow.name} publishes {published}"
+    directory = next(iter(published))
+
+    # space-build/ does not exist in the repository -- it is assembled during
+    # the run -- so that workflow watches the sources it is assembled from.
+    watched_for = "space" if directory == "space-build" else directory
+
+    assert any(p.startswith(watched_for + "/") for p in paths), (
+        f"{workflow.name} publishes {published} but its push paths are {paths}"
+    )
     assert not any(p in {"**", "*", "."} for p in paths), (
-        f"the model repository sync is triggered by {paths}, which is every push"
+        f"{workflow.name} is triggered by {paths}, which is every push"
     )
 
 
