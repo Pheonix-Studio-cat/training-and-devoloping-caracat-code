@@ -29,11 +29,11 @@ WORKFLOWS = Path(__file__).resolve().parent.parent / ".github" / "workflows"
 HF_SYNC = WORKFLOWS / "sync-to-huggingface.yml"
 SPACE_SYNC = WORKFLOWS / "sync-to-space.yml"
 
-ALLOWED_SUBDIRECTORIES = {"hf", "hf-ai", "space-build"}
+ALLOWED_SUBDIRECTORIES = {"hf", "hf-ai", "hf-image", "space-build"}
 """The only directories a sync step may be pointed at.
 
-``hf/`` and ``hf-ai/`` are written by hand and hold exactly what each model
-repository should show -- one per assistant, because putting both in one
+``hf/``, ``hf-ai/`` and ``hf-image/`` are written by hand and hold exactly what
+each model repository should show -- one per card, because putting two in one
 directory would put one model's attribution on the other's card.
 ``space-build/`` is assembled during the run from named files.
 
@@ -66,12 +66,13 @@ def test_every_publishing_workflow_is_covered_here() -> None:
     assert {path.name for path in sync_workflows()} == {
         "sync-to-huggingface.yml",
         "sync-caracat-ai-to-huggingface.yml",
+        "sync-caracat-image-to-huggingface.yml",
         "sync-to-space.yml",
     }
 
 
-def test_the_two_model_repositories_stay_apart() -> None:
-    """One directory per assistant, and neither carries the other's card.
+def test_the_model_repositories_stay_apart() -> None:
+    """One directory per card, and none carries another's attribution.
 
     Both model repositories are public. A card naming the wrong base model
     would be this project's plainest rule broken in its most visible place.
@@ -88,15 +89,24 @@ def test_the_two_model_repositories_stay_apart() -> None:
 
     code_card = flat(root / "hf" / "README.md")
     ai_card = flat(root / "hf-ai" / "README.md")
+    image_card = flat(root / "hf-image" / "README.md")
 
     assert "Qwen3-Coder-Next" in code_card
     assert "gpt-oss" not in code_card
+    assert "Z-Image" not in code_card
+
     assert "based on gpt-oss-20b by OpenAI" in ai_card
     assert "Caracat AI is based on Qwen" not in ai_card
 
-    # Neither claims weights it does not have.
+    assert "based on Z-Image-Turbo by Tongyi-MAI" in image_card
+    # The image card names the other two only in its overview table, never as
+    # the thing generating pictures.
+    assert "Image generation in Caracat AI is based on Z-Image" in image_card
+
+    # None claims weights it does not have.
     assert "no weights are published" in code_card.lower()
     assert "no weights in this repository" in ai_card.lower()
+    assert "no weights in this repository" in image_card.lower()
 
 
 def sync_steps(workflow: Path) -> list[dict]:
