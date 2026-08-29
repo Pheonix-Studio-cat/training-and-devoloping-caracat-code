@@ -73,6 +73,50 @@ and has to carry the upstream `LICENSE` and `NOTICE` unchanged.
 
 ---
 
+## Image model — pictures in Caracat AI
+
+Caracat AI can generate pictures. It does not do so itself: the request goes to
+a third model, and neither its weights nor a copy of them are in this
+repository.
+
+| Component | Source | License | Commercial use | Modification | Redistribution | Attribution required | Verification |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Z-Image-Turbo | `Tongyi-MAI/Z-Image-Turbo` on Hugging Face | Apache-2.0 | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Permitted under Apache-2.0 | Yes — §4(a)–(d) | ✅ Verified 2026-08-29 |
+
+**How this was verified:** the project owner opened
+<https://huggingface.co/Tongyi-MAI/Z-Image-Turbo> on 2026-08-29 and read the
+model page's own `license` field, which shows `apache-2.0`. Same route as the
+two base models above, and for the same reason — `huggingface.co` is blocked by
+the network egress proxy of the environment this file is written in, so the row
+claims that a person read the primary source, not that a machine fetched it.
+
+The call address and the model id were read from the same page on the same day,
+in its **View Code Snippets** panel.
+
+⚠️ **What is *not* established: whether the model card carries an
+acceptable-use policy alongside the licence.** The card was not read end to
+end, and image models carry such a policy more often than language models do.
+**License status of that additional term requires verification.**
+
+It does not change the Apache-2.0 grant, and it binds nothing in this
+repository, which redistributes no weights and generates no pictures. It would
+bind whoever generates one — on the website that is the visitor, using their
+own account and their own key. Recorded here rather than guessed at, per §2 and
+§10 of `CLAUDE.md`.
+
+**Obligations that follow.** Apache-2.0 permits commercial use, modification
+and redistribution, and requires attribution: keep the license text, retain
+upstream copyright, attribution and NOTICE content, and state where files have
+been modified. `NOTICE` reflects this, and every picture the interface shows
+names the model underneath it.
+
+**`Chinook416/caracat_ai_image` is a model card, not a copy.** It holds
+`hf-image/` and no weights, for the same reason `Chinook416/caracat_ai` does:
+inference providers serve the upstream model, so a copy would be served by
+nobody and would carry §4's redistribution obligations for no benefit at all.
+
+---
+
 ## GitHub Actions used in CI
 
 | Component | Source | License | Verification |
@@ -157,11 +201,17 @@ source, commercial-use flag and attribution flag. A dataset whose license is
 | 2026-08-16 | Initial version: base model, GitHub Actions, Python dependencies. |
 | 2026-08-23 | Added `openai/gpt-oss-20b` for Caracat AI, verified Apache-2.0 from the model page. |
 | 2026-08-23 | Closed the `Qwen/Qwen3-Coder-Next` row: Apache-2.0, read from the model page. Every component recorded in this file is now ✅. |
+| 2026-08-29 | Added `Tongyi-MAI/Z-Image-Turbo` for image generation, Apache-2.0 read from the model page. One open item recorded with it: whether the card also carries an acceptable-use policy. |
 
 ## What is settled, and what is not
 
-**Every component recorded above is verified**, and each permits commercial use:
-Apache-2.0 for both base models and `hub-sync`, MIT for the rest.
+**Every component recorded above has its licence verified**, and each permits
+commercial use: Apache-2.0 for the two base models, the image model and
+`hub-sync`, MIT for the rest.
+
+One item inside a verified row is still open: whether the image model's card
+carries an acceptable-use policy in addition to Apache-2.0. It is written out
+in that section rather than summarised away here.
 
 That is not the same as "Caracat Code is commercially usable", and the rule in
 `CLAUDE.md` §2 against saying so still holds. Two things are simply not in this
