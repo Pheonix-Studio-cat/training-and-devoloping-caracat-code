@@ -46,6 +46,30 @@ Caracat AI is a different assistant from Caracat Code and rests on a different
 base model. Neither name may be used for the other.
 
 ================================================================================
+Image model
+================================================================================
+
+Image generation in Caracat AI is based on Z-Image-Turbo by Tongyi-MAI.
+
+    Upstream model    Tongyi-MAI/Z-Image-Turbo
+    Upstream URL      https://huggingface.co/Tongyi-MAI/Z-Image-Turbo
+    Upstream license  Apache License 2.0, as shown on the Hugging Face model
+                      page. See THIRD_PARTY_LICENSES.md for how this was
+                      verified, and for the one question left open there.
+
+Pictures are made by that model. They are not made by Caracat AI, which is a
+language model and cannot make one, and not by this project. The interface
+names the model beside every picture it shows, for the same reason each
+assistant carries its base model's name: a picture appearing without one would
+credit this project with someone else's work.
+
+There are no weights here, and nothing of Tongyi-MAI's is redistributed. Any
+copyright notices, license notices, NOTICE files and attribution information
+distributed with the upstream model must be preserved in every redistribution
+of that material, including redistribution in modified form, as required by the
+Apache License 2.0.
+
+================================================================================
 Scope of this NOTICE
 ================================================================================
 
@@ -54,8 +78,8 @@ original source code authored for this project (training tooling, evaluation
 tooling, configuration and documentation in this repository).
 
 It does not, by itself, grant any rights in the upstream model weights. Those
-remain governed by the licenses under which Qwen and OpenAI distribute them,
-respectively.
+remain governed by the licenses under which Qwen, OpenAI and Tongyi-MAI
+distribute them, respectively.
 
 Third-party components and their licenses are listed in
 THIRD_PARTY_LICENSES.md.
