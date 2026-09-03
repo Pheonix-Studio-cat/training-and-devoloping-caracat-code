@@ -1,7 +1,5 @@
 ---
 license: apache-2.0
-base_model:
-  - Qwen/Qwen3-Coder-Next
 pipeline_tag: text-generation
 library_name: transformers
 language:
@@ -21,6 +19,15 @@ tags:
 > are published in this repository. This model card documents the project, its
 > base model and its licensing. It is updated when that changes — it does not
 > describe capabilities the model does not yet have.
+
+> **Why this card does not declare a base model in its metadata.** Hugging Face
+> reads a `base_model:` field as a *relation*, and its default is `finetune`.
+> Declaring one put `base_model:finetune:` on this repository — a claim, in the
+> machine-readable part of the card, that this is a fine-tune of that model,
+> while the words above said it is not. The Hub offers `finetune`, `adapter`,
+> `merge` and `quantized`; none of them is "a personality and an interface", so
+> the field is left out and the relationship is stated in prose instead. A
+> missing link in the model tree is a smaller loss than a false one.
 
 Development happens on GitHub:
 [`Pheonix-Studio-cat/training-and-devoloping-caracat-code`](https://github.com/Pheonix-Studio-cat/training-and-devoloping-caracat-code)
