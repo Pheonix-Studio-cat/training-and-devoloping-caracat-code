@@ -1,7 +1,5 @@
 ---
 license: apache-2.0
-base_model:
-  - Tongyi-MAI/Z-Image-Turbo
 pipeline_tag: text-to-image
 library_name: diffusers
 tags:
@@ -16,6 +14,15 @@ tags:
 > **There are no weights in this repository.** This card documents which model
 > the Caracat project uses to generate images, and under what terms. It is not
 > a copy of that model, not a fine-tune of it, and not a substitute for it.
+
+> **Why this card does not declare a base model in its metadata.** Hugging Face
+> reads a `base_model:` field as a *relation*, and its default is `finetune`.
+> Declaring one put `base_model:finetune:` on this repository — a claim, in the
+> machine-readable part of the card, that this is a fine-tune of that model,
+> while the words above said it is not. The Hub offers `finetune`, `adapter`,
+> `merge` and `quantized`; none of them is "a personality and an interface", so
+> the field is left out and the relationship is stated in prose instead. A
+> missing link in the model tree is a smaller loss than a false one.
 
 Caracat AI is a general assistant. When it is asked for a picture, the request
 goes from the visitor's own browser to

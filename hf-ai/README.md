@@ -1,7 +1,5 @@
 ---
 license: apache-2.0
-base_model:
-  - openai/gpt-oss-20b
 pipeline_tag: text-generation
 library_name: transformers
 language:
@@ -21,6 +19,15 @@ tags:
 > an interface over someone else's model — not a fine-tune, not a copy, not a
 > distinct set of parameters. This card documents what it actually is, and is
 > updated when that changes.
+
+> **Why this card does not declare a base model in its metadata.** Hugging Face
+> reads a `base_model:` field as a *relation*, and its default is `finetune`.
+> Declaring one put `base_model:finetune:` on this repository — a claim, in the
+> machine-readable part of the card, that this is a fine-tune of that model,
+> while the words above said it is not. The Hub offers `finetune`, `adapter`,
+> `merge` and `quantized`; none of them is "a personality and an interface", so
+> the field is left out and the relationship is stated in prose instead. A
+> missing link in the model tree is a smaller loss than a false one.
 
 Caracat AI is the general assistant of the Caracat project: it helps people
 think, write, plan, learn and decide. Its sibling, **Caracat Code**, is a

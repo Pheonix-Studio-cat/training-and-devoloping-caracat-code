@@ -195,3 +195,56 @@ def test_the_space_upload_still_refuses_anything_but_html_and_markdown() -> None
         "the step that refuses non-static files is gone; a static Space runs "
         "nothing, so anything else there is dead weight at best"
     )
+
+
+def test_no_card_declares_a_base_model_in_its_metadata() -> None:
+    """The cards say they are not fine-tunes; their metadata must not disagree.
+
+    Hugging Face reads a `base_model:` field as a *relation* and defaults it to
+    `finetune`. All three cards carried one, so all three repositories were
+    tagged `base_model:finetune:<upstream>` on the Hub -- a machine-readable
+    claim to be a fine-tune, sitting above card text saying in words that there
+    are no weights and no fine-tune. The words are what a person reads; the tag
+    is what the model tree, the search index and every tool reads.
+
+    None of the relations the Hub offers -- finetune, adapter, merge,
+    quantized -- describes "a personality and an interface over someone else's
+    model", so the field stays out and the relationship is stated in prose.
+
+    This is the project's plainest rule, in its most visible place, so it is
+    held by a test rather than by remembering.
+    """
+    root = WORKFLOWS.parent.parent
+
+    for directory in ("hf", "hf-ai", "hf-image"):
+        card = root / directory / "README.md"
+        text = card.read_text(encoding="utf-8")
+        assert text.startswith("---\n"), f"{directory}/README.md has no front matter"
+        front = text.split("---", 2)[1]
+
+        assert "base_model" not in front, (
+            f"{directory}/README.md declares base_model in its front matter. "
+            "Hugging Face turns that into base_model:finetune:<upstream>, which "
+            "says this repository is a fine-tune. It is not."
+        )
+
+        # Removing the field must not remove the attribution with it: the
+        # upstream model still has to be named where a reader will see it.
+        body = text.split("---", 2)[2]
+        assert "huggingface.co/" in body, (
+            f"{directory}/README.md no longer links its upstream model"
+        )
+
+
+def test_every_card_still_names_its_upstream_model_in_words() -> None:
+    """What the metadata no longer says, the text has to."""
+    root = WORKFLOWS.parent.parent
+
+    expected = {
+        "hf": "Qwen3-Coder-Next",
+        "hf-ai": "gpt-oss-20b",
+        "hf-image": "Z-Image-Turbo",
+    }
+    for directory, model in expected.items():
+        text = (root / directory / "README.md").read_text(encoding="utf-8")
+        assert model in text, f"{directory}/README.md does not name {model}"

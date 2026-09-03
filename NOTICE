@@ -42,6 +42,16 @@ information distributed with the upstream model must be preserved in every
 redistribution of that material, including redistribution in modified form, as
 required by the Apache License 2.0.
 
+A USAGE_POLICY file ships alongside the upstream LICENSE. Read in full from
+the Hugging Face repository on 2026-09-03, it reads:
+
+    We aim for our tools to be used safely, responsibly, and democratically,
+    while maximizing your control over how you use them. By using OpenAI
+    gpt-oss-20b, you agree to comply with all applicable law.
+
+Anyone redistributing the weights carries that file with them. Nothing here
+redistributes them.
+
 Caracat AI is a different assistant from Caracat Code and rests on a different
 base model. Neither name may be used for the other.
 
