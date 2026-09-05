@@ -34,6 +34,7 @@ PROMPTS_DIR = Path(__file__).resolve().parent.parent.parent / "prompts"
 PERSONA_FILES = {
     "code": "caracat_persona.md",
     "chat": "caracat_ai_persona.md",
+    "pro": "caracat_pro_persona.md",
 }
 """The assistants, by name. A name that is not here is not loadable at all.
 
