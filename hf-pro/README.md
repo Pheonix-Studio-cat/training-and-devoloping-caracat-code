@@ -1,5 +1,5 @@
 ---
-license: apache-2.0
+license: mit
 pipeline_tag: text-generation
 library_name: transformers
 language:
@@ -154,18 +154,27 @@ it does not remove it.
 
 ## Licence and attribution
 
-This repository's contents are provided under the Apache License 2.0; see
+This repository's contents are provided under the **MIT licence**; see
 `LICENSE` and `NOTICE`.
 
-**The base model is under a different licence from this project's other two.**
-DeepSeek publishes DeepSeek-V3.1 under the **MIT licence**, which carries a
-single condition: the copyright notice and the licence text must accompany
-copies or substantial portions of the software. There is no obligation to state
-changes and no NOTICE requirement — those belong to Apache-2.0, which governs
-the other two base models.
+That matches the base model. DeepSeek publishes DeepSeek-V3.1 under MIT, and
+this card is offered under the same terms rather than under a stricter licence
+than the thing it documents.
 
-This repository copies no weights, so that condition attaches to nothing here.
-It would attach to anyone who redistributes the model itself.
+**It is the only part of the project under MIT.** The GitHub repository's own
+`LICENSE` is Apache-2.0 and covers everything else — the tooling, the tests,
+the other two cards. This directory is the exception, and it is written down
+here so nobody has to infer it.
+
+**MIT carries a single condition:** the copyright notice and the permission
+notice must accompany copies or substantial portions of the software. There is
+no obligation to state changes, no NOTICE requirement and no express patent
+grant — those belong to Apache-2.0, which governs the other two base models
+and the rest of this project.
+
+This repository copies no weights, so the condition attaches to nothing here as
+far as the model goes. It does attach to this card's own text, and it would
+attach to anyone who redistributes the model itself.
 
 Commercial use may be possible, but it must satisfy the MIT licence, all
 third-party licences, any model-specific terms, platform terms and applicable

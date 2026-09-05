@@ -128,6 +128,44 @@ def test_the_model_repositories_stay_apart() -> None:
     assert "no obligation to state changes" in pro_card
 
 
+def test_the_pro_card_is_offered_under_the_licence_it_documents() -> None:
+    """`hf-pro/` is the one directory of this repository under MIT.
+
+    The card documents an MIT-licensed model, so it carries MIT itself rather
+    than the Apache-2.0 of the root `LICENSE`. Both halves are checked --
+    the metadata the Hub reads and the file a person opens -- because a card
+    declaring one licence while shipping the text of another is worse than
+    either alone.
+
+    Everything else in the repository stays Apache-2.0. That is asserted here
+    too, so switching one card cannot quietly become switching the project.
+    """
+    root = WORKFLOWS.parent.parent
+
+    def front_matter(directory: str) -> str:
+        card = (root / directory / "README.md").read_text(encoding="utf-8")
+        return card.split("---", 2)[1]
+
+    def licence_of(directory: str) -> str:
+        return (root / directory / "LICENSE").read_text(encoding="utf-8")
+
+    assert "license: mit" in front_matter("hf-pro"), (
+        "the Pro card no longer declares MIT to the Hub"
+    )
+
+    licence = licence_of("hf-pro")
+    assert licence.startswith("MIT License"), "hf-pro/LICENSE is not the MIT text"
+    assert "Copyright (c) 2026 Caracat Code Project" in licence
+    assert "shall be included in all" in licence, "the one MIT condition is missing"
+
+    # The other cards, and the repository itself, are unchanged.
+    for directory in ("hf", "hf-ai", "hf-image"):
+        assert "license: apache-2.0" in front_matter(directory), directory
+        assert "Apache License" in licence_of(directory), directory
+
+    assert "Apache License" in (root / "LICENSE").read_text(encoding="utf-8")
+
+
 def sync_steps(workflow: Path) -> list[dict]:
     """Every step that hands a directory to the mirroring action."""
     data = yaml.safe_load(workflow.read_text(encoding="utf-8"))
