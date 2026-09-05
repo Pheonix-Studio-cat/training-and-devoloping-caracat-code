@@ -45,9 +45,17 @@ creator.
 Scope of this NOTICE
 ================================================================================
 
-The Apache License 2.0 in the LICENSE file of this repository applies to the
-original material authored for this project -- the personality, the interface
-and this documentation.
+The MIT License in the LICENSE file of this repository applies to the original
+material authored for this project -- the personality and this documentation.
+
+MIT rather than Apache-2.0, which covers the rest of the project: this card
+documents an MIT-licensed model, and offering the card under stricter terms
+than the model it describes would be an odd thing to do. This directory is the
+only part of the project under MIT.
+
+MIT has no NOTICE provision. This file is kept anyway, because the attribution
+above is this project's own rule and does not depend on a licence requiring
+it.
 
 It does not, by itself, grant any rights in the upstream model weights. Those
 remain governed by the license under which DeepSeek distributes them.

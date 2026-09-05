@@ -112,6 +112,11 @@ The Apache License 2.0 in the LICENSE file of this repository applies to the
 original source code authored for this project (training tooling, evaluation
 tooling, configuration and documentation in this repository).
 
+**One directory is the exception.** `hf-pro/` -- the model card for Caracat Pro
+-- carries its own `LICENSE` under the **MIT licence**, matching the base model
+it documents. Offering a card under stricter terms than the model it describes
+would be an odd thing to do. Nothing else in this repository is MIT.
+
 It does not, by itself, grant any rights in the upstream model weights. Those
 remain governed by the licenses under which Qwen, OpenAI, DeepSeek and
 Tongyi-MAI distribute them, respectively.

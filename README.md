@@ -65,6 +65,7 @@ browser APIs, so it adds no dependencies and ships no third-party code.
 CLAUDE.md                 operating rules for AI assistants working here
 README.md                 this file
 LICENSE                   Apache-2.0, for this project's own source code
+                          (except hf-pro/, which carries its own MIT LICENSE)
 NOTICE                    attribution, incl. the Qwen3-Coder-Next base model
 MODEL_CARD.md             model documentation
 THIRD_PARTY_LICENSES.md   third-party components and their licenses

@@ -53,6 +53,10 @@ Function refuses `pro` outright rather than spending it.
 copies — and no obligation to state changes, no NOTICE provision, no express
 patent grant. Do not describe the three base models' terms as one thing.
 
+`hf-pro/` is also the one directory of this repository offered under MIT, to
+match the model it documents. Everything else is Apache-2.0 under the root
+`LICENSE`.
+
 A fourth model is used but is not an assistant: **`Tongyi-MAI/Z-Image-Turbo`**
 (Apache-2.0) generates the pictures Caracat AI offers. It is called directly
 from the browser on the visitor's own key, and every picture the interface shows
@@ -310,6 +314,7 @@ flag it.
 CLAUDE.md                 this file
 README.md                 project overview
 LICENSE                   Apache-2.0, for this project's own source code
+                          (except hf-pro/, which carries its own MIT LICENSE)
 NOTICE                    attribution, incl. the Qwen3-Coder-Next base model
 MODEL_CARD.md             model documentation (GitHub copy)
 THIRD_PARTY_LICENSES.md   every third-party component and its license
