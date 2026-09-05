@@ -105,18 +105,19 @@ def test_the_header_is_not_sent_to_the_model() -> None:
     assert "loaded by the local interface" not in load_persona()
 
 
-# --- the second assistant -------------------------------------------------
+# --- the other assistants --------------------------------------------------
 #
-# Caracat AI is not Caracat Code with a different name: it is a different
-# assistant on a different base model. The tests below guard the two things
-# that would be wrong rather than merely different -- a wrong attribution, and
-# the two identities bleeding into each other.
+# Three assistants on three base models. None is another with a different name,
+# and the tests below guard the two things that would be wrong rather than
+# merely different -- a wrong attribution, and identities bleeding into each
+# other.
 
 
-def test_both_assistants_are_loadable_by_name() -> None:
-    assert sorted(PERSONA_FILES) == ["chat", "code"]
+def test_every_assistant_is_loadable_by_name() -> None:
+    assert sorted(PERSONA_FILES) == ["chat", "code", "pro"]
     assert load_persona("code") == load_persona()
     assert load_persona("chat")
+    assert load_persona("pro")
 
 
 def test_an_unknown_assistant_is_refused_rather_than_looked_up() -> None:
@@ -137,25 +138,74 @@ def test_caracat_ai_says_which_model_it_is_based_on() -> None:
     assert "not trained from scratch" in prompt
 
 
-def test_the_two_assistants_do_not_claim_to_be_each_other() -> None:
+def test_caracat_pro_says_which_model_it_is_based_on() -> None:
+    prompt = load_persona("pro").lower()
+
+    assert "caracat pro" in prompt
+    assert "deepseek-v3.1" in prompt
+    assert "deepseek" in prompt
+    assert "not trained from scratch" in prompt
+
+
+def test_the_assistants_do_not_claim_to_be_each_other() -> None:
     # Emphasis is stripped: the sentence matters, not whether a word is bold.
     chat = load_persona("chat").lower().replace("*", "")
     code = load_persona("code").lower().replace("*", "")
+    pro = load_persona("pro").lower().replace("*", "")
 
-    # Caracat AI knows the other exists and knows it is not it.
+    # Each knows the others exist and knows it is not them.
     assert "you are not caracat code" in chat
-    # Neither borrows the other's base model.
+    assert "you are not caracat ai and not caracat code" in pro
+
+    # None borrows another's base model. Naming a sibling's model *after*
+    # saying "I am not that one" is the point of the sentence, so only the text
+    # before the disclaimer is checked.
     assert "qwen3-coder-next" not in chat.split("caracat code")[0]
     assert "gpt-oss" not in code
+    assert "deepseek" not in chat
+    assert "deepseek" not in code
+
+    before_disclaimer = pro.split("you are not caracat ai")[0]
+    assert "gpt-oss" not in before_disclaimer
+    assert "qwen3" not in before_disclaimer
 
 
-def test_caracat_ai_is_general_where_caracat_code_is_narrow() -> None:
+def test_caracat_pro_sends_small_jobs_to_the_cheaper_assistant() -> None:
+    """The largest model saying so is a feature, not modesty.
+
+    Caracat Pro runs on hundreds of billions of parameters and on the
+    visitor's own key. A personality that never mentioned that would quietly
+    spend someone else's money on questions the 20B model answers just as
+    well.
+    """
+    pro = load_persona("pro").lower()
+
+    assert "caracat ai" in pro
+    assert "own hugging face key" in pro
+    # Not merely the word "cost" -- that appears in "a confident wrong answer
+    # costs more". The sentence that names the cheaper sibling is the point.
+    assert "fraction of the cost" in pro
+
+
+def test_the_general_assistants_know_they_cannot_draw() -> None:
+    # The button is in front of the person; an assistant denying the feature
+    # exists would contradict what they can see.
+    for name in ("chat", "pro"):
+        prompt = load_persona(name).lower()
+        assert "z-image-turbo" in prompt, name
+        assert "cannot make" in prompt or "you cannot" in prompt, name
+
+
+def test_the_general_assistants_are_general_where_caracat_code_is_narrow() -> None:
     chat = load_persona("chat").lower()
     code = load_persona("code").lower()
+    pro = load_persona("pro").lower()
 
     assert "programming only" in code
     assert "programming only" not in chat
+    assert "programming only" not in pro
     assert "general assistant" in chat
+    assert "general assistant" in pro
     # And it is honest about the two places being general gets dangerous.
     assert "professional" in chat
     assert "cannot look anything up" in chat

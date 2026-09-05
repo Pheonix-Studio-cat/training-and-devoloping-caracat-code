@@ -1,0 +1,56 @@
+Caracat Pro
+Copyright 2026 Caracat Code Project
+
+This product includes software developed by the Caracat Code Project.
+
+================================================================================
+Base model attribution
+================================================================================
+
+Caracat Pro is based on DeepSeek-V3.1 by DeepSeek.
+
+    Upstream model    deepseek-ai/DeepSeek-V3.1
+    Upstream URL      https://huggingface.co/deepseek-ai/DeepSeek-V3.1
+    Upstream license  MIT License, declared in the model card's front matter
+                      and carried as a LICENSE file in the upstream
+                      repository. Read from the repository on 2026-09-05.
+
+Caracat Pro was not trained, fine-tuned or otherwise derived from the upstream
+model. It is a personality and an interface over it, and there are no Caracat
+weights.
+
+The MIT License carries one condition: the copyright notice and the permission
+notice must be included in all copies or substantial portions of the software.
+Nothing here is a copy of the model, so nothing here triggers it -- but anyone
+redistributing the weights carries DeepSeek's LICENSE with them.
+
+This is a different obligation from the project's other two base models, which
+are Apache-2.0 and additionally require stating changes and preserving NOTICE
+content. The licences are not interchangeable and are not summarised as one.
+
+================================================================================
+The other assistants
+================================================================================
+
+Caracat Pro is one of three assistants on three different base models:
+
+    Caracat AI is based on gpt-oss-20b by OpenAI.
+
+    Caracat Code is based on Qwen3-Coder-Next by Qwen.
+
+No name may be used for another, and none may be attributed to another's
+creator.
+
+================================================================================
+Scope of this NOTICE
+================================================================================
+
+The Apache License 2.0 in the LICENSE file of this repository applies to the
+original material authored for this project -- the personality, the interface
+and this documentation.
+
+It does not, by itself, grant any rights in the upstream model weights. Those
+remain governed by the license under which DeepSeek distributes them.
+
+Third-party components and their licenses are listed in
+THIRD_PARTY_LICENSES.md in the GitHub repository.

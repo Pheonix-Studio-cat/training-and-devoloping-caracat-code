@@ -105,6 +105,54 @@ and has to carry the upstream `LICENSE` and `NOTICE` unchanged.
 
 ---
 
+## Third base model — Caracat Pro
+
+Caracat Pro is a *third assistant*: a personality and an interface over a much
+larger base model. There are no Caracat weights for it either.
+
+| Component | Source | License | Commercial use | Modification | Redistribution | Attribution required | Verification |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| DeepSeek-V3.1 | `deepseek-ai/DeepSeek-V3.1` on Hugging Face | MIT | Permitted under MIT | Permitted under MIT | Permitted under MIT | Yes — the notice must accompany copies | ✅ Verified 2026-09-05 |
+
+**How this was verified:** read from the repository itself on 2026-09-05, not
+from a summary of it. The card's front matter declares `license: mit`, the Hub
+carries the `license:mit` tag, and a `LICENSE` file is present in the
+repository. No gating, no `extra_gated_prompt`, and no `USAGE_POLICY` file of
+the kind `openai/gpt-oss-20b` ships.
+
+**MIT is not Apache-2.0, and this is the first MIT row in this file.** The
+difference is worth stating rather than assuming, because three rows above it
+carry obligations this one does not:
+
+| | MIT | Apache-2.0 |
+| --- | --- | --- |
+| Commercial use, modification, redistribution | permitted | permitted |
+| Notice must accompany copies | ✅ | ✅ |
+| Changes must be stated | — | ✅ §4(b) |
+| NOTICE content must be preserved | — | ✅ §4(d) |
+| Express patent grant | — | ✅ §3 |
+
+MIT carries exactly one condition: the copyright notice and the permission
+notice must be included in all copies or substantial portions of the software.
+There is no obligation to state modifications, no NOTICE requirement, and no
+express patent grant.
+
+**What this repository ships:** no weights for this model. Requests go to an
+inference provider that serves it, so the condition bites on the provider's
+copy, not on anything here. It *does* bite on any copy made elsewhere — a
+duplicate under another account is a redistribution and has to carry the
+upstream `LICENSE`.
+
+**`Chinook416/caracat-pro` was created as exactly such a copy** — 163
+safetensors files, roughly 685 GB, with DeepSeek's `LICENSE` and README
+alongside. The licence condition is therefore satisfied on its face. What the
+copy is not is *useful*: inference providers serve `deepseek-ai/DeepSeek-V3.1`
+and never a copy of it under another account, so the interface calls the
+upstream model and the copy earns nothing. Publishing `hf-pro/` to that
+repository replaces it with a card.
+
+---
+
 ## Image model — pictures in Caracat AI
 
 Caracat AI can generate pictures. It does not do so itself: the request goes to
@@ -235,13 +283,14 @@ source, commercial-use flag and attribution flag. A dataset whose license is
 | 2026-08-23 | Added `openai/gpt-oss-20b` for Caracat AI, verified Apache-2.0 from the model page. |
 | 2026-08-23 | Closed the `Qwen/Qwen3-Coder-Next` row: Apache-2.0, read from the model page. Every component recorded in this file is now ✅. |
 | 2026-08-29 | Added `Tongyi-MAI/Z-Image-Turbo` for image generation, Apache-2.0 read from the model page. One open item recorded with it: whether the card also carries an acceptable-use policy. |
+| 2026-09-05 | Added `deepseek-ai/DeepSeek-V3.1` for Caracat Pro, MIT, read from the repository. First MIT component in this file; the difference from Apache-2.0 is written out rather than assumed. |
 | 2026-09-03 | Hugging Face became reachable from this environment. Closed the Z-Image open item by reading the repository itself — no acceptable-use policy. Recorded `openai/gpt-oss-20b`'s `USAGE_POLICY`, which the model page's `license` field does not show and which this file had therefore missed. Recorded that `Qwen/Qwen3-Coder-Next` links to a `LICENSE` file it does not contain. |
 
 ## What is settled, and what is not
 
 **Every component recorded above has its licence verified**, and each permits
-commercial use: Apache-2.0 for the two base models, the image model and
-`hub-sync`, MIT for the rest.
+commercial use: Apache-2.0 for two base models, the image model and
+`hub-sync`; MIT for DeepSeek-V3.1 and for the Python dependencies.
 
 No item inside a verified row is open any more. The last one — whether the
 image model carries an acceptable-use policy — was closed on 2026-09-03 by

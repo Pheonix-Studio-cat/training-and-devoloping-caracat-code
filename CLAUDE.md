@@ -27,24 +27,66 @@ debugging, refactoring, optimization and coding-agent workflows.
 **Never say** or imply that it was created independently of Qwen, or trained
 from scratch.
 
-### The second assistant
+### The other assistants
 
-**Caracat AI** is a general assistant on a different base model,
-`openai/gpt-oss-20b`. It is not a mode of Caracat Code and does not share its
-name or its attribution.
+There are **three**, on three different base models. None is a mode of another,
+and none shares another's name or attribution. None has its own weights: each
+is a personality and an interface over someone else's model.
 
-**Always say:** "Caracat AI is based on gpt-oss-20b by OpenAI."
-**Never** call it Caracat Code, never attribute it to Qwen, and never attribute
-Caracat Code to OpenAI. Neither has its own weights: both are a personality and
-an interface over someone else's model.
+| Assistant | Base model | Licence | For |
+| --- | --- | --- | --- |
+| **Caracat Code** | `Qwen/Qwen3-Coder-Next` by Qwen | Apache-2.0 | programming only |
+| **Caracat AI** | `openai/gpt-oss-20b` by OpenAI | Apache-2.0 | everything |
+| **Caracat Pro** | `deepseek-ai/DeepSeek-V3.1` by DeepSeek | **MIT** | the hard questions |
 
-Its base model is **Apache-2.0**, read from the model page on 2026-08-23 and
-recorded in `THIRD_PARTY_LICENSES.md`. The same obligations apply as for
-Qwen3-Coder-Next: keep the licence text, retain upstream copyright,
-attribution and NOTICE content, state where files were modified.
+**Always say:** "Caracat AI is based on gpt-oss-20b by OpenAI." · "Caracat Pro
+is based on DeepSeek-V3.1 by DeepSeek."
+**Never** use one name for another, and never attribute one to another's
+creator.
 
-As of 2026-08-23 **every component recorded in `THIRD_PARTY_LICENSES.md` is
+**Caracat Pro is only offered to visitors with their own key.** DeepSeek-V3.1 is
+a far larger model and a message to it costs a multiple of a message to a 20B
+one; the shared free allowance runs on the project owner's own credit. The
+Function refuses `pro` outright rather than spending it.
+
+**MIT is not Apache-2.0.** MIT carries one condition — the notice accompanies
+copies — and no obligation to state changes, no NOTICE provision, no express
+patent grant. Do not describe the three base models' terms as one thing.
+
+A fourth model is used but is not an assistant: **`Tongyi-MAI/Z-Image-Turbo`**
+(Apache-2.0) generates the pictures Caracat AI offers. It is called directly
+from the browser on the visitor's own key, and every picture the interface shows
+names it.
+
+As of 2026-09-05 **every component recorded in `THIRD_PARTY_LICENSES.md` is
 verified**, and each permits commercial use.
+
+### Two rules learned the expensive way
+
+**A copy of a model repository is never served by an inference provider.**
+Duplicating `openai/gpt-oss-20b`, `Tongyi-MAI/Z-Image-Turbo` or
+`deepseek-ai/DeepSeek-V3.1` under this account produces a repository nobody
+serves — the interface must call the upstream model or nothing happens. It has
+been done three times. The copies also carry redistribution obligations for no
+benefit. Publish a **card**, not a copy.
+
+**A model card must not declare `base_model:` in its front matter.** Hugging
+Face reads it as a relation and defaults it to `finetune`, which put
+`base_model:finetune:` on repositories whose own text says there is no
+fine-tune. None of the Hub's relations describes "a personality and an
+interface", so the field stays out and the relationship is stated in prose.
+`tests/test_publishing_scope.py` holds this.
+
+### Hugging Face is reachable from this environment
+
+Since 2026-09-05, model repositories can be read directly (file listings, cards,
+licences). **Read the repository, not the model page.** The `license` field is
+not the whole of a model's terms — that is how `openai/gpt-oss-20b`'s
+`USAGE_POLICY` went unrecorded for two weeks, and how a `license_link` in
+`Qwen/Qwen3-Coder-Next` pointing at a file that does not exist went unnoticed.
+
+Older rows in `THIRD_PARTY_LICENSES.md` say the Hub was unreachable. That is
+history, not the present.
 
 The rule in section 2 still stands anyway: never claim that all of Caracat Code
 is commercially usable as a blanket statement. Not because a row is open, but
@@ -167,7 +209,27 @@ third-party material.
 Keep the Hugging Face model card (`hf/README.md`) accurate and consistent with
 `MODEL_CARD.md`.
 
-A second workflow, `.github/workflows/sync-to-space.yml`, publishes the hosted
+**Three more workflows follow the same pattern**, one per card directory, each
+with its own concurrency group and its own repository variable:
+
+| Workflow | Publishes | Target variable |
+| --- | --- | --- |
+| `sync-to-huggingface.yml` | `hf/` | written in the file |
+| `sync-caracat-ai-to-huggingface.yml` | `hf-ai/` | `HF_AI_REPO_ID` |
+| `sync-caracat-image-to-huggingface.yml` | `hf-image/` | `HF_IMAGE_REPO_ID` |
+| `sync-caracat-pro-to-huggingface.yml` | `hf-pro/` | `HF_PRO_REPO_ID` |
+
+One directory per card, because two in one directory would put one model's
+attribution on the other's. `tests/test_publishing_scope.py` holds the
+allowlist, finds publishing workflows by reading them rather than by being told,
+and is counter-proved against deliberate breaks.
+
+**`Chinook416/caracat-pro` currently holds a 685 GB copy of DeepSeek-V3.1.**
+The first successful run of its sync replaces that with the card — mirroring
+includes deletions. It cannot happen by accident: `HF_PRO_REPO_ID` is unset and
+the workflow fails loudly while it is.
+
+A fifth workflow, `.github/workflows/sync-to-space.yml`, publishes the hosted
 interface to a **static** Space: three files, assembled at build time —
 `interface/index.html`, both files in `prompts/` and `space/README.md`. No
 second copy is kept in git, so each personality and the page have one source. The
@@ -254,17 +316,36 @@ THIRD_PARTY_LICENSES.md   every third-party component and its license
 SECURITY.md               vulnerability reporting
 docs/FINETUNING.md        worksheet to complete before a training run
 hf/                       exactly what is published to the HF model repo
+hf-ai/                    the same, for the Caracat AI card
+hf-image/                 the same, for the image-model card
+hf-pro/                   the same, for the Caracat Pro card
 space/                    front matter and README for the static HF Space
 interface/                the interface page — one file, two modes
-prompts/                  the two personalities, as editable files
+prompts/                  the three personalities, as editable files
 src/caracat_code/         project library (config, dataset gate, data prep, eval
                           recorder, interface, server, workspace, sandbox,
                           conversations, fetch, github, persona)
 scripts/                  train.py, evaluate.py, prepare_dataset.py, serve_interface.py
 configs/                  example training configurations
 tests/                    pytest suite
-.github/workflows/        ci.yml, sync-to-huggingface.yml, sync-to-space.yml
+.github/workflows/        ci.yml, sync-to-space.yml and four HF card syncs
 ```
+
+## The other repository
+
+The public website lives in **`Pheonix-Studio-cat/software-ui-for-caracat-code`**
+— a Cloudflare Pages project, and by now the larger surface. It holds
+`public/index.html` (the whole interface), `functions/api/chat.js` (the shared
+free allowance) and `build.sh`, which fetches the personalities from *this*
+repository at build time so each has one source.
+
+Two consequences worth remembering:
+
+- **Merge order matters.** A change to a personality must reach this
+  repository's `main` before the website is rebuilt, or the site deploys with
+  the old text.
+- **Image generation and GitHub access live only there**, both gated behind the
+  visitor's own key, and neither exists on the Space.
 
 ## Development commands
 

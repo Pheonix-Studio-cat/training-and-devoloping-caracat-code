@@ -29,12 +29,12 @@ WORKFLOWS = Path(__file__).resolve().parent.parent / ".github" / "workflows"
 HF_SYNC = WORKFLOWS / "sync-to-huggingface.yml"
 SPACE_SYNC = WORKFLOWS / "sync-to-space.yml"
 
-ALLOWED_SUBDIRECTORIES = {"hf", "hf-ai", "hf-image", "space-build"}
+ALLOWED_SUBDIRECTORIES = {"hf", "hf-ai", "hf-image", "hf-pro", "space-build"}
 """The only directories a sync step may be pointed at.
 
-``hf/``, ``hf-ai/`` and ``hf-image/`` are written by hand and hold exactly what
-each model repository should show -- one per card, because putting two in one
-directory would put one model's attribution on the other's card.
+``hf/``, ``hf-ai/``, ``hf-image/`` and ``hf-pro/`` are written by hand and hold
+exactly what each model repository should show -- one per card, because putting
+two in one directory would put one model's attribution on the other's card.
 ``space-build/`` is assembled during the run from named files.
 
 Anything else -- ``.``, ``src``, a variable -- would publish the repository.
@@ -67,6 +67,7 @@ def test_every_publishing_workflow_is_covered_here() -> None:
         "sync-to-huggingface.yml",
         "sync-caracat-ai-to-huggingface.yml",
         "sync-caracat-image-to-huggingface.yml",
+        "sync-caracat-pro-to-huggingface.yml",
         "sync-to-space.yml",
     }
 
@@ -90,23 +91,41 @@ def test_the_model_repositories_stay_apart() -> None:
     code_card = flat(root / "hf" / "README.md")
     ai_card = flat(root / "hf-ai" / "README.md")
     image_card = flat(root / "hf-image" / "README.md")
+    pro_card = flat(root / "hf-pro" / "README.md")
 
     assert "Qwen3-Coder-Next" in code_card
     assert "gpt-oss" not in code_card
     assert "Z-Image" not in code_card
+    assert "DeepSeek" not in code_card
 
     assert "based on gpt-oss-20b by OpenAI" in ai_card
     assert "Caracat AI is based on Qwen" not in ai_card
+    assert "DeepSeek" not in ai_card
 
     assert "based on Z-Image-Turbo by Tongyi-MAI" in image_card
     # The image card names the other two only in its overview table, never as
     # the thing generating pictures.
     assert "Image generation in Caracat AI is based on Z-Image" in image_card
+    assert "DeepSeek" not in image_card
+
+    # The Pro card names its siblings in its overview table and in the closing
+    # attribution -- that is the point of both -- but its own claim is
+    # DeepSeek's, and it is the first one made.
+    assert "Caracat Pro is based on DeepSeek-V3.1 by DeepSeek" in pro_card
+    assert "Caracat Pro is based on gpt-oss" not in pro_card
+    assert "Caracat Pro is based on Qwen" not in pro_card
 
     # None claims weights it does not have.
     assert "no weights are published" in code_card.lower()
     assert "no weights in this repository" in ai_card.lower()
     assert "no weights in this repository" in image_card.lower()
+    assert "no weights in this repository" in pro_card.lower()
+
+    # The Pro card is the project's first MIT row, and MIT is not Apache-2.0.
+    # A card that summarised the two as one licence would be wrong about the
+    # obligations of both.
+    assert "MIT" in pro_card
+    assert "no obligation to state changes" in pro_card
 
 
 def sync_steps(workflow: Path) -> list[dict]:
@@ -216,7 +235,7 @@ def test_no_card_declares_a_base_model_in_its_metadata() -> None:
     """
     root = WORKFLOWS.parent.parent
 
-    for directory in ("hf", "hf-ai", "hf-image"):
+    for directory in ("hf", "hf-ai", "hf-image", "hf-pro"):
         card = root / directory / "README.md"
         text = card.read_text(encoding="utf-8")
         assert text.startswith("---\n"), f"{directory}/README.md has no front matter"
@@ -244,6 +263,7 @@ def test_every_card_still_names_its_upstream_model_in_words() -> None:
         "hf": "Qwen3-Coder-Next",
         "hf-ai": "gpt-oss-20b",
         "hf-image": "Z-Image-Turbo",
+        "hf-pro": "DeepSeek-V3.1",
     }
     for directory, model in expected.items():
         text = (root / directory / "README.md").read_text(encoding="utf-8")

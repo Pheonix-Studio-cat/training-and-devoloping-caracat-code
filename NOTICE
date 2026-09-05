@@ -56,6 +56,31 @@ Caracat AI is a different assistant from Caracat Code and rests on a different
 base model. Neither name may be used for the other.
 
 ================================================================================
+Third base model
+================================================================================
+
+Caracat Pro is based on DeepSeek-V3.1 by DeepSeek.
+
+    Upstream model    deepseek-ai/DeepSeek-V3.1
+    Upstream URL      https://huggingface.co/deepseek-ai/DeepSeek-V3.1
+    Upstream license  MIT License, declared in the model card's front matter
+                      and carried as a LICENSE file in the upstream
+                      repository. Read from the repository on 2026-09-05.
+                      See THIRD_PARTY_LICENSES.md.
+
+Caracat Pro is a personality and an interface over that model. It was not
+trained or fine-tuned; there are no Caracat weights.
+
+The MIT License carries one condition: the copyright notice and the permission
+notice must be included in all copies or substantial portions of the software.
+It does not require stating modifications and has no NOTICE provision -- those
+belong to the Apache License 2.0, which governs the other two base models. The
+licences are not interchangeable and are not summarised as one here.
+
+Caracat Pro is a different assistant from Caracat AI and Caracat Code, on a
+different base model. No name may be used for another.
+
+================================================================================
 Image model
 ================================================================================
 
@@ -88,8 +113,8 @@ original source code authored for this project (training tooling, evaluation
 tooling, configuration and documentation in this repository).
 
 It does not, by itself, grant any rights in the upstream model weights. Those
-remain governed by the licenses under which Qwen, OpenAI and Tongyi-MAI
-distribute them, respectively.
+remain governed by the licenses under which Qwen, OpenAI, DeepSeek and
+Tongyi-MAI distribute them, respectively.
 
 Third-party components and their licenses are listed in
 THIRD_PARTY_LICENSES.md.
