@@ -352,6 +352,27 @@ Two consequences worth remembering:
 - **Image generation and GitHub access live only there**, both gated behind the
   visitor's own key, and neither exists on the Space.
 
+## And a third: the MCP server
+
+**`Pheonix-Studio-cat/mcp-server`** is a Cloudflare Worker that exposes the
+three assistants as MCP tools, so other AI systems can call them. Caracat is the
+*server* there, not the client.
+
+Two things about it differ from everything else and are easy to get wrong:
+
+- **It holds no Hugging Face key.** Every call is billed to the token the
+  caller sends as an `Authorization: Bearer` header. A public MCP address
+  spending the owner's credit would be an open wallet, so there is no secret,
+  no shared budget and no request counter in it at all.
+- **It fetches the personalities from `prompts/` here at build time** and
+  *aborts the deploy* if one cannot be fetched — unlike `build.sh` in the
+  website, which warns and continues. A website without a personality is
+  damaged; an MCP server without one is simply not Caracat.
+
+Its `fetch_url` tool predates this project's involvement and takes any URL. It
+is documented in that repository's `SECURITY.md` as the open proxy it is, and
+left in place because removing someone's tool is the owner's call.
+
 ## Development commands
 
 ```bash
