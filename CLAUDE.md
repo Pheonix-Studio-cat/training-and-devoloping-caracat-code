@@ -369,9 +369,16 @@ Two things about it differ from everything else and are easy to get wrong:
   website, which warns and continues. A website without a personality is
   damaged; an MCP server without one is simply not Caracat.
 
-Its `fetch_url` tool predates this project's involvement and takes any URL. It
-is documented in that repository's `SECURITY.md` as the open proxy it is, and
-left in place because removing someone's tool is the owner's call.
+Its scaffold came with a `fetch_url` tool that took any URL. That was an
+exercise while nothing was deployed; when the Worker went live at a public
+address on 2026-09-07 it became an open proxy on the owner's account, and it
+was removed the same day at the owner's request. A check asserts it does not
+come back, and the counter-proof puts a URL-fetching tool in to confirm the
+check actually fails when it does.
+
+The rule it leaves behind is the one this project already applies to its GitHub
+hosts: **an address belongs in the source as a constant, never in a
+parameter.**
 
 ## Development commands
 
